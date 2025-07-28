@@ -6,4 +6,4 @@ A random collection of small projects
 - Simple LQR controller
 - Put together simulator
 - Write animation / plotting tools
-- Consider adding yapf autoformatting
+- Look into replacing flake8+yapf with ruff
