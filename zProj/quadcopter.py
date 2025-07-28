@@ -19,9 +19,9 @@ class Quadcopter():
         cpsi = np.cos(psi)
         spsi = np.sin(psi)
         R = np.array([
-            [cth*cpsi, cth*spsi, -sth],
-            [sphi*sth*cpsi - cphi*spsi, sphi*sth*spsi + cphi*cpsi, sphi*cth],
-            [cphi*sth*cpsi - sphi*spsi, cphi*sth*spsi - sphi*cpsi, cphi*cth]
+            [cth*cpsi, sphi*sth*cpsi - cphi*spsi, cphi*sth*cpsi - sphi*spsi],
+            [cth*spsi, sphi*sth*spsi + cphi*cpsi, cphi*sth*spsi - sphi*cpsi],
+            [-sth, sphi*cth, cphi*cth]
         ])
         return R
 
@@ -54,7 +54,7 @@ class Quadcopter():
         moment_aero = moment_lin * pqr
         return force_aero, moment_aero
 
-    def dynamics(self, state: np.ndarray, control: np.ndarray, wind_ned: np.ndarray = np.zeros(3)):
+    def dynamics(self, state: np.ndarray, control: np.ndarray, wind_ned: np.ndarray = np.zeros(3)) -> np.ndarray:
         """
         Dynamics function for quadcopter object `xDot = f(x,u)`
 
@@ -85,7 +85,7 @@ class Quadcopter():
         force_aero,moment_aero = self.getAeroForceMomemnts(state, wind_body)
 
         force_control = self.m*np.array([0,0,-thrust])
-        force_gravity = self.m*self.g*R_b2i[:,2]
+        force_gravity = self.m*self.g*R_b2i[2,:]
         force_total = force_control + force_aero + force_gravity
 
         moment_control = self.I@mxyz

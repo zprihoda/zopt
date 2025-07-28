@@ -15,13 +15,13 @@ def test_bodyToInertialRotationMatrix():
     cth = np.cos(th)
     sth = np.sin(th)
 
-    R_exp = np.array([[1,0,0],[0,cth,sth],[0,-sth,cth]])
+    R_exp = np.array([[1,0,0],[0,cth,-sth],[0,sth,cth]])
     assert ac._bodyToInertialRotationMatrix(th,0,0) == pytest.approx(R_exp)
 
-    R_exp = np.array([[cth,0,-sth],[0,1,0],[sth,0,cth]])
+    R_exp = np.array([[cth,0,sth],[0,1,0],[-sth,0,cth]])
     assert ac._bodyToInertialRotationMatrix(0,th,0) == pytest.approx(R_exp)
 
-    R_exp = np.array([[cth,sth,0],[-sth,cth,0],[0,0,1]])
+    R_exp = np.array([[cth,-sth,0],[sth,cth,0],[0,0,1]])
     assert ac._bodyToInertialRotationMatrix(0,0,th) == pytest.approx(R_exp)
 
 def test_bodyRatesToEulerRatesRotationMatrix():
