@@ -9,6 +9,10 @@ class Quadcopter():
         self.I = np.eye(3)  # Inertia tensor
         self.I_inv = np.linalg.inv(self.I)
 
+        # Internal instance variables
+        self._R_b2i = np.eye(3)
+        self._R_rates2Eul = np.eye(3)
+
     def _bodyToInertialRotationMatrix(self, phi: float, theta: float, psi: float) -> np.ndarray:
         """Comptue body-to-inertial rotation matrix"""
         cphi = np.cos(phi)
@@ -53,13 +57,13 @@ class Quadcopter():
         moment_aero = moment_lin * pqr
         return force_aero, moment_aero
 
-    def dynamics(self, state: np.ndarray, control: np.ndarray, wind_ned: np.ndarray = np.zeros(3)) -> np.ndarray:
+    def rigidBodyDynamics(self, state: np.ndarray, control: np.ndarray, wind_ned: np.ndarray = np.zeros(3)) -> np.ndarray:
         """
-        Dynamics function for quadcopter object `xDot = f(x,u)`
+        Rigid-body dynamics function for quadcopter `xDot = f(x,u)`
 
         Arguments
         ---------
-            state : aircraft state, [u,v,w,p,q,r,phi,theta,psi,x,y,z]
+            state : aircraft state, [u,v,w,p,q,r,phi,theta,psi]
             control : control input, [-fz,mx,my,mz]   (all mass/inertia normalized, accelerations)
             wind_ned : wind in the north-east-down frame
 
@@ -78,6 +82,9 @@ class Quadcopter():
         R_b2i = self._bodyToInertialRotationMatrix(phi, theta, psi)
         R_rates2Eul = self._bodyRatesToEulerRatesRotationMatrix(phi, theta)
 
+        self._R_b2i = R_b2i
+        self._R_rates2Eul = R_rates2Eul
+
         # Get total force / moments in body axis
         wind_body = R_b2i.T @ wind_ned
         force_aero,moment_aero = self.getAeroForceMomemnts(state, wind_body)
@@ -93,7 +100,28 @@ class Quadcopter():
         uvwDot = (1/self.m) * (-np.cross(pqr, uvw) + force_total)
         pqrDot = self.I_inv @ (-np.cross(pqr, self.I@pqr) + moment_total)
         eulDot = R_rates2Eul @ pqr
-        xyzDot = R_b2i @ uvw
-        dState = np.concatenate([uvwDot, pqrDot, eulDot, xyzDot])
+
+        dState = np.concatenate([uvwDot, pqrDot, eulDot])
 
         return dState
+
+    def inertialDynamics(self, state: np.ndarray, control: np.ndarray, wind_ned: np.ndarray = np.zeros(3)) -> np.ndarray:
+        """
+        Dynamics function for quadcopter with position states `xDot = f(x,u)`
+
+        Arguments
+        ---------
+            state : aircraft state, [u,v,w,p,q,r,phi,theta,psi,x,y,z]
+            control : control input, [-fz,mx,my,mz]   (all mass/inertia normalized, accelerations)
+            wind_ned : wind in the north-east-down frame
+
+        Returns
+        -------
+            dState : time derivative of state
+        """
+        xDot_rb = self.rigidBodyDynamics(state[:9], control, wind_ned=wind_ned)
+
+        uvw = state[0:3]
+        xyzDot = self._R_b2i @ uvw
+        xDot_inertial = np.concatenate([xDot_rb, xyzDot])
+        return xDot_inertial

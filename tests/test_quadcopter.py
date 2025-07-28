@@ -39,15 +39,43 @@ def test_bodyRatesToEulerRatesRotationMatrix():
     R_exp = np.array([[1,0,tth],[0,1,0],[0,0,1/cth]])
     assert ac._bodyRatesToEulerRatesRotationMatrix(0,th) == pytest.approx(R_exp)
 
-def test_dynamics():
+def test_rigidBodyDynamics():
     ac = Quadcopter()
-    state = np.zeros(12)
+    state = np.zeros(9)
     control = np.zeros(4)
-    xDot = ac.dynamics(state, control)
-    xDot_exp = np.array([0,0,9.807,0,0,0,0,0,0,0,0,0])
+    xDot = ac.rigidBodyDynamics(state, control)
+    xDot_exp = np.array([0,0,9.807,0,0,0,0,0,0])
     assert xDot == pytest.approx(xDot_exp)
 
     control = np.array([9.807,0,0,0])
-    xDot = ac.dynamics(state, control)
-    xDot_exp = np.array([0,0,0,0,0,0,0,0,0,0,0,0])
+    xDot = ac.rigidBodyDynamics(state, control)
+    xDot_exp = np.array([0,0,0,0,0,0,0,0,0])
     assert xDot == pytest.approx(xDot_exp)
+
+def test_inertialDynamics():
+    ac = Quadcopter()
+
+    # No motion case
+    state = np.zeros(12)
+    control = np.array([9.807,0,0,0])
+    xDot = ac.inertialDynamics(state, control)
+    xDot_exp = np.zeros(12)
+    assert xDot == pytest.approx(xDot_exp)
+
+    # No rotation case
+    uvw = np.array([0.1,0.2,0.3])
+    state = np.zeros(12)
+    state[0:3] = uvw
+    xDot = ac.inertialDynamics(state, control)
+    xyzDot_exp = uvw
+    assert xDot[9:] == pytest.approx(xyzDot_exp)
+
+    # Rotation case
+    uvw = np.array([0.1,0.2,0.3])
+    psi = np.pi/2
+    state = np.zeros(12)
+    state[0:3] = uvw
+    state[8] = psi
+    xDot = ac.inertialDynamics(state, control)
+    xyzDot_exp = np.array([-uvw[1], uvw[0], uvw[2]])
+    assert xDot[9:] == pytest.approx(xyzDot_exp)

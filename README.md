@@ -2,8 +2,8 @@
 A random collection of small projects
 
 ## TODO:
-- Consider adding yapf autoformatting
-- Split out inertial dynamics into separate function (or option to dynamics function)
-- Write animation / plotting tools
+- Add trim / linearization functions
 - Simple LQR controller
 - Put together simulator
+- Write animation / plotting tools
+- Consider adding yapf autoformatting
