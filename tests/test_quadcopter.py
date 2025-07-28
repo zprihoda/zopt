@@ -5,7 +5,7 @@ from zProj.quadcopter import Quadcopter
 
 def test_default_init():
     """Test the default class initialization runs without error"""
-    ac = Quadcopter()
+    Quadcopter()
 
 def test_bodyToInertialRotationMatrix():
     ac = Quadcopter()

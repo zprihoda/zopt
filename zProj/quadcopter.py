@@ -1,4 +1,3 @@
-import jax as jax
 import jax.numpy as np
 
 class Quadcopter():
@@ -50,7 +49,7 @@ class Quadcopter():
 
         # Compute aero force moments
         uvw_aero = uvw - windBody   # body-frame velocities wrt air
-        force_aero = force_lin * uvw_aero +  force_quad * uvw_aero**2
+        force_aero = force_lin * uvw_aero + force_quad * uvw_aero**2
         moment_aero = moment_lin * pqr
         return force_aero, moment_aero
 
@@ -72,7 +71,6 @@ class Quadcopter():
         uvw = state[0:3]
         pqr = state[3:6]
         phi,theta,psi = state[6:9]
-        xyz = state[9:12]       # Inertial positions (ie. north, east, down)
         thrust = control[0]     # vertical acceleration (thrust)
         mxyz = control[1:4]     # angular accelerations (moments)
 
@@ -94,7 +92,7 @@ class Quadcopter():
         # Equations of motion
         uvwDot = (1/self.m) * (-np.cross(pqr, uvw) + force_total)
         pqrDot = self.I_inv @ (-np.cross(pqr, self.I@pqr) + moment_total)
-        eulDot =  R_rates2Eul @ pqr
+        eulDot = R_rates2Eul @ pqr
         xyzDot = R_b2i @ uvw
         dState = np.concatenate([uvwDot, pqrDot, eulDot, xyzDot])
 
