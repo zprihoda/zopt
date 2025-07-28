@@ -7,6 +7,38 @@ def test_default_init():
     """Test the default class initialization runs without error"""
     ac = Quadcopter()
 
+def test_bodyToInertialRotationMatrix():
+    ac = Quadcopter()
+    assert ac._bodyToInertialRotationMatrix(0,0,0) == pytest.approx(np.eye(3))
+
+    th = np.pi/6
+    cth = np.cos(th)
+    sth = np.sin(th)
+
+    R_exp = np.array([[1,0,0],[0,cth,sth],[0,-sth,cth]])
+    assert ac._bodyToInertialRotationMatrix(th,0,0) == pytest.approx(R_exp)
+
+    R_exp = np.array([[cth,0,-sth],[0,1,0],[sth,0,cth]])
+    assert ac._bodyToInertialRotationMatrix(0,th,0) == pytest.approx(R_exp)
+
+    R_exp = np.array([[cth,sth,0],[-sth,cth,0],[0,0,1]])
+    assert ac._bodyToInertialRotationMatrix(0,0,th) == pytest.approx(R_exp)
+
+def test_bodyRatesToEulerRatesRotationMatrix():
+    ac = Quadcopter()
+    assert ac._bodyRatesToEulerRatesRotationMatrix(0,0) == pytest.approx(np.eye(3))
+
+    th = np.pi/6
+    cth = np.cos(th)
+    sth = np.sin(th)
+    tth = np.tan(th)
+
+    R_exp = np.array([[1,0,0],[0,cth,-sth],[0,sth,cth]])
+    assert ac._bodyRatesToEulerRatesRotationMatrix(th,0) == pytest.approx(R_exp)
+
+    R_exp = np.array([[1,0,tth],[0,1,0],[0,0,1/cth]])
+    assert ac._bodyRatesToEulerRatesRotationMatrix(0,th) == pytest.approx(R_exp)
+
 def test_dynamics():
     ac = Quadcopter()
     state = np.zeros(12)
