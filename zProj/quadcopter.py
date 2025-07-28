@@ -1,4 +1,6 @@
-import jax.numpy as np
+import jax.numpy as jnp
+import numpy as np
+import scipy.optimize as spo
 
 
 class Quadcopter():
@@ -37,7 +39,8 @@ class Quadcopter():
         R_rates2Eul = np.array([[1, sphi * tth, cphi * tth], [0, cphi, -sphi], [0, sphi / cth, cphi / cth]])
         return R_rates2Eul
 
-    def getAeroForceMomemnts(self, state: np.ndarray, windBody: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    def getAeroForceMomemnts(self, state: np.ndarray,
+                             windBody: np.ndarray = np.zeros(3)) -> tuple[np.ndarray, np.ndarray]:
         """Compute the aero force/moments"""
         uvw = state[0:3]
         pqr = state[3:6]
@@ -123,3 +126,38 @@ class Quadcopter():
         xyzDot = self._R_b2i @ uvw
         xDot_inertial = np.concatenate([xDot_rb, xyzDot])
         return xDot_inertial
+
+    def trim(self, uvwTrim: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Trim quadcopter at specified uvw
+
+        Arguments
+        ---------
+            uvwTrim: Vector specifying body velocities at which to trim
+
+        Returns
+        -------
+            xTrim: Trim state vector
+            uTrim: Trim control vector
+        """
+        nx = 9  # Number of input states
+        x0 = np.concatenate([uvwTrim, np.zeros(6)])
+        u0 = np.array([self.g, 0, 0, 0])
+        z0 = np.concatenate([x0, u0])
+        trimFunc = lambda z: np.linalg.norm(self.rigidBodyDynamics(z[:nx], z[nx:]))
+
+        A_uvw = np.concatenate([np.eye(3), np.zeros((3, 10))], axis=1)
+        A_psi = np.zeros(13)
+        A_psi[8] = 1
+        constraints = [
+            spo.LinearConstraint(A_uvw, lb=uvwTrim, ub=uvwTrim),  # Set trim uvw
+            spo.LinearConstraint(A_psi, lb=0, ub=0),  # Set trim heading to north
+        ]
+        out = spo.minimize(trimFunc, z0, constraints=constraints)
+
+        if not out.success:
+            raise RuntimeError("Trim failed")
+
+        xTrim = out.x[:nx]
+        uTrim = out.x[nx:]
+        return xTrim, uTrim
