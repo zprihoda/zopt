@@ -2,9 +2,10 @@
 A random collection of small projects
 
 ## TODO:
-- Trim and linearization
-    - Convert trim to jax.numpy, may have to write my own optimizer
-    - Add linearization function
+- LQR Demo
+    - Implement a simple LQR controller
+    - Put together simple simulator
+    - Write animation / plotting tools
 - Dynamics:
     - Add rotor dynamics
         - Add min/max rpm
@@ -15,7 +16,4 @@ A random collection of small projects
         - Include rotor dynamics
 - General
     - Consider structured arrays (or something similar) to clean up state interface
-    - Simple LQR controller
-    - Put together simulator
-    - Write animation / plotting tools
     - Look into replacing flake8+yapf with ruff
