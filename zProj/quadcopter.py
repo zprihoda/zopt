@@ -165,6 +165,17 @@ class Quadcopter():
     #     return xTrim, uTrim
 
     def linearize(self, x0: jnp.ndarray, u0: jnp.ndarray) -> tuple[jnp.ndarray, jnp.ndarray]:
-        """Linearize the quadcopter dynamics about a given state and control input"""
+        """
+        Linearize the quadcopter dynamics about a given state and control input
+
+        Arguments
+        ---------
+            x0 : State about which to linearize
+            u0 : Control about which to linearize
+        Returns
+        -------
+            A : Partial derivative of the dynamics function wrt the state input
+            B : Partial derivative of the dynamics function wrt the control input
+        """
         A, B = self._linFunc(x0, u0)
         return A, B
