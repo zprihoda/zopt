@@ -1,6 +1,6 @@
 import jax
 import jax.numpy as jnp
-import scipy.optimize as spo
+import jax.scipy.optimize as jspo
 
 
 class Quadcopter():
@@ -129,40 +129,39 @@ class Quadcopter():
         xDot_inertial = jnp.concatenate([xDot_rb, xyzDot])
         return xDot_inertial
 
-    # def trim(self, uvwTrim: jnp.ndarray) -> tuple[jnp.ndarray, jnp.ndarray]:
-    #     """
-    #     Trim quadcopter at specified uvw
+    def trim(self, uvwTrim: jnp.ndarray) -> tuple[jnp.ndarray, jnp.ndarray]:
+        """
+        Trim quadcopter at specified uvw
 
-    #     Arguments
-    #     ---------
-    #         uvwTrim: Vector specifying body velocities at which to trim
+        Arguments
+        ---------
+            uvwTrim: Vector specifying body velocities at which to trim
 
-    #     Returns
-    #     -------
-    #         xTrim: Trim state vector
-    #         uTrim: Trim control vector
-    #     """
-    #     nx = 9  # Number of input states
-    #     x0 = jnp.concatenate([uvwTrim, jnp.zeros(6)])
-    #     u0 = jnp.array([self.g, 0, 0, 0])
-    #     z0 = jnp.concatenate([x0, u0])
-    #     trimFunc = lambda z: jnp.linalg.norm(self.rigidBodyDynamics(z[:nx], z[nx:]))
+        Returns
+        -------
+            xTrim: Trim state vector
+            uTrim: Trim control vector
+        """
+        psiTrim = jnp.array([0])
+        nxz = 5
 
-    #     A_uvw = jnp.concatenate([jnp.eye(3), jnp.zeros((3, 10))], axis=1)
-    #     A_psi = jnp.zeros(13)
-    #     A_psi[8] = 1
-    #     constraints = [
-    #         spo.LinearConstraint(A_uvw, lb=uvwTrim, ub=uvwTrim),  # Set trim uvw
-    #         spo.LinearConstraint(A_psi, lb=0, ub=0),  # Set trim heading to north
-    #     ]
-    #     out = spo.minimize(trimFunc, z0, constraints=constraints)
+        def _getXu(z):
+            x = jnp.concatenate([uvwTrim, z[:nxz], psiTrim])
+            u = z[nxz:]
+            return x, u
 
-    #     if not out.success:
-    #         raise RuntimeError("Trim failed")
+        x0 = jnp.zeros(nxz)
+        u0 = jnp.array([self.g, 0, 0, 0])
+        z0 = jnp.concatenate([x0, u0])
+        trimFunc = lambda z: jnp.sum(self.rigidBodyDynamics(*_getXu(z))**2)
+        trimFunc = jax.jit(trimFunc)
+        out = jspo.minimize(trimFunc, z0, method="BFGS")
 
-    #     xTrim = out.x[:nx]
-    #     uTrim = out.x[nx:]
-    #     return xTrim, uTrim
+        if not out.success:
+            raise RuntimeError("Trim failed")
+
+        xTrim, uTrim = _getXu(out.x)
+        return xTrim, uTrim
 
     def linearize(self, x0: jnp.ndarray, u0: jnp.ndarray) -> tuple[jnp.ndarray, jnp.ndarray]:
         """
