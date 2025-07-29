@@ -17,6 +17,8 @@ class Quadcopter():
         self._R_b2i = jnp.eye(3)
         self._R_rates2Eul = jnp.eye(3)
 
+        self._linFunc = jax.jit(jax.jacobian(self.rigidBodyDynamics, argnums=(0, 1)))
+
     def _bodyToInertialRotationMatrix(self, phi: float, theta: float, psi: float) -> jnp.ndarray:
         """Comptue body-to-inertial rotation matrix"""
         cphi = jnp.cos(phi)
@@ -164,6 +166,5 @@ class Quadcopter():
 
     def linearize(self, x0: jnp.ndarray, u0: jnp.ndarray) -> tuple[jnp.ndarray, jnp.ndarray]:
         """Linearize the quadcopter dynamics about a given state and control input"""
-        jacFunc = jax.jacobian(self.rigidBodyDynamics, argnums=(0, 1))
-        A, B = jacFunc(x0, u0)
+        A, B = self._linFunc(x0, u0)
         return A, B
