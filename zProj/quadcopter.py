@@ -1,3 +1,4 @@
+import jax
 import jax.numpy as jnp
 import scipy.optimize as spo
 
@@ -160,3 +161,9 @@ class Quadcopter():
     #     xTrim = out.x[:nx]
     #     uTrim = out.x[nx:]
     #     return xTrim, uTrim
+
+    def linearize(self, x0: jnp.ndarray, u0: jnp.ndarray) -> tuple[jnp.ndarray, jnp.ndarray]:
+        """Linearize the quadcopter dynamics about a given state and control input"""
+        jacFunc = jax.jacobian(self.rigidBodyDynamics, argnums=(0, 1))
+        A, B = jacFunc(x0, u0)
+        return A, B

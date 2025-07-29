@@ -98,3 +98,11 @@ def test_inertialDynamics():
 #     x0, u0 = ac.trim(uvw0)
 #     assert x0[0:3] == pytest.approx(uvw0)
 #     assert ac.rigidBodyDynamics(x0, u0) == pytest.approx(np.zeros(9), abs=1e-3)
+
+
+def test_linearize():
+    ac = Quadcopter()
+    x0 = np.zeros(9)
+    u0 = np.array([9.807, 0, 0, 0])
+    A, B = ac.linearize(x0, u0)
+    assert not (np.any(np.isnan(A)) or np.any(np.isnan(B)))
