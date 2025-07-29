@@ -3,9 +3,11 @@ A random collection of small projects
 
 ## TODO:
 - LQR Demo
-    - Implement a simple LQR controller
     - Put together simple simulator
+        - Replace simulator in lqrControl
     - Write animation / plotting tools
+        - Replace plotting tools in lqrControl
+    - Add tracking LQR demo
 - Dynamics:
     - Add rotor dynamics
         - Add min/max rpm
