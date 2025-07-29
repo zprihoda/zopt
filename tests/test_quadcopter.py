@@ -84,3 +84,25 @@ def test_inertialDynamics():
     xDot = ac.inertialDynamics(state, control)
     xyzDot_exp = np.array([-uvw[1], uvw[0], uvw[2]])
     assert xDot[9:] == pytest.approx(xyzDot_exp)
+
+
+def test_trim():
+    ac = Quadcopter()
+
+    uvw0 = np.zeros(3)
+    x0, u0 = ac.trim(uvw0)
+    assert x0[0:3] == pytest.approx(uvw0)
+    assert ac.rigidBodyDynamics(x0, u0) == pytest.approx(np.zeros(9), abs=1e-3)
+
+    uvw0 = np.array([0.1, 0.2, 0.3])
+    x0, u0 = ac.trim(uvw0)
+    assert x0[0:3] == pytest.approx(uvw0)
+    assert ac.rigidBodyDynamics(x0, u0) == pytest.approx(np.zeros(9), abs=1e-3)
+
+
+def test_linearize():
+    ac = Quadcopter()
+    x0 = np.zeros(9)
+    u0 = np.array([9.807, 0, 0, 0])
+    A, B = ac.linearize(x0, u0)
+    assert not (np.any(np.isnan(A)) or np.any(np.isnan(B)))
