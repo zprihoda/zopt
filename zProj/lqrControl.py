@@ -2,9 +2,9 @@ import jax
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.linalg as spl
-import scipy.integrate as spi
 
 from quadcopter import Quadcopter
+from simulator import Simulator
 
 
 def computeInfiniteHorizonLqrGains(A, B, Q, R):
@@ -66,11 +66,12 @@ def main():
     K = computeInfiniteHorizonLqrGains(A, B, Q, R)
 
     # Simple Simulation
-    stepFun = jax.jit(lambda t, x: ac.inertialDynamics(x, lqrController(x, xTrim, uTrim, K)))
-    tArr = np.arange(0, T, dt)
-    out = spi.solve_ivp(stepFun, [0, T], x0, t_eval=tArr)
-    xArr = out.y.T
-    uArr = np.array([lqrController(x, xTrim, uTrim, K) for x in xArr])
+    dyn_fun = lambda t, x, u: ac.inertialDynamics(x, u)
+    control_fun = lambda t, x: lqrController(x, xTrim, uTrim, K)
+    t_span = (0, T)
+    t_eval = np.arange(0, T, dt)
+    sim = Simulator(dyn_fun, control_fun, t_span, x0, t_eval=t_eval)
+    tArr, xArr, uArr = sim.simulate()
     plotResults(tArr, xArr, uArr)
     plt.show()
 
