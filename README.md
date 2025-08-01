@@ -3,16 +3,21 @@ A random collection of small projects
 
 ## TODO:
 - LQR Demo
-    - Write animation / plotting tools
-        - Replace plotting tools in lqrControl
-    - Consider creating lqrUtil to track common functions
+    - Write quadcopter animation
+    - Create lqrUtil to track common lqr functions
     - Add relevant tests for all of the above (lqrControl, simulator, plottingTools, animationTools, lqrUtil)
-    - Add tracking LQR demo and tests
+    - Move lqrControl to demo folder, add "long" tests for demos
+    - Add integral LQR demo
+    - Add tracking LQR demo
+    - Add iterative LQR demo
 - Simulator:
     - Add support for controller states (eg. for integrators)
     - Add support for discrete controllers?
     - Jit the step function? Will that work in a class?
     - Use diffrax for ode integration?
+- PlottingTools
+    - Add support for structured arrays, can auto-extract names
+    - Add plot positionTrajectory (or generic phase plot?)
 - Quadcopter:
     - Speed up trim, consider [optimistix](https://github.com/patrick-kidger/optimistix)
     - Add rotor dynamics

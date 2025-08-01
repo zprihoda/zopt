@@ -5,6 +5,7 @@ import scipy.linalg as spl
 
 from quadcopter import Quadcopter
 from simulator import Simulator
+from plottingTools import plotTimeTrajectories
 
 
 def computeInfiniteHorizonLqrGains(A, B, Q, R):
@@ -17,31 +18,6 @@ def lqrController(x, x0, u0, K):
     x_fb = x[:8]
     control = -K @ (x_fb - x0) + u0
     return control
-
-
-def plotResults(tArr, xArr, uArr):
-    stateGroupNames = ["Body Velocities", "Body Rates", "Euler Angles", "Positions"]
-    stateNames = ['u', 'v', 'w', 'p', 'q', 'r', 'phi', 'theta', 'psi', 'x', 'y', 'z']
-    controlNames = ['thrust', 'pDot', 'qDot', 'rDot']
-
-    Nx = 3
-    for iFig in range(len(stateNames) // Nx):
-        fig, axs = plt.subplots(Nx, 1, sharex=True)
-        for jx in range(Nx):
-            ix = iFig * Nx + jx
-            axs[jx].plot(tArr, xArr[:, ix])
-            axs[jx].set_ylabel(stateNames[ix])
-            axs[jx].grid()
-        axs[Nx - 1].set_xlabel("time")
-        fig.suptitle(stateGroupNames[iFig])
-
-    fig, axs = plt.subplots(4, 1, sharex=True)
-    for iu in range(4):
-        axs[iu].plot(tArr, uArr[:, iu])
-        axs[iu].set_ylabel(controlNames[iu])
-        axs[iu].grid()
-    axs[3].set_xlabel("time")
-    fig.suptitle("Control")
 
 
 def main():
@@ -72,7 +48,13 @@ def main():
     t_eval = np.arange(0, T, dt)
     sim = Simulator(dyn_fun, control_fun, t_span, x0, t_eval=t_eval)
     tArr, xArr, uArr = sim.simulate()
-    plotResults(tArr, xArr, uArr)
+
+    # Plot Results
+    stateGroupNames = ["Body Velocities (m/s)", "Body Rates (rad/s)", "Euler Angles (rad)", "Positions (m)"]
+    stateGroups = [['u', 'v', 'w'], ['p', 'q', 'r'], ['phi', 'theta', 'psi'], ['x', 'y', 'z']]
+    controlGroupNames = ["Accel Commands (m/s^2, rad/s^2)"]
+    controlGroups = [['thrust', 'pDot', 'qDot', 'rDot']]
+    plotTimeTrajectories(tArr, xArr, uArr, stateGroupNames, stateGroups, controlGroupNames, controlGroups)
     plt.show()
 
 
