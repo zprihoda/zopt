@@ -3,10 +3,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.linalg as spl
 
-from quadcopter import Quadcopter
-from simulator import Simulator
-from plottingTools import plotTimeTrajectories
-from lqrUtils import computeInfiniteHorizonLqrGains, infiniteHorizonLqrController
+from zProj.quadcopter import Quadcopter
+from zProj.simulator import Simulator
+from zProj.plottingTools import plotTimeTrajectories
+from zProj.lqrUtils import computeInfiniteHorizonLqrGains, infiniteHorizonLqrController
 
 
 def main():
