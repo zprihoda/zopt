@@ -6,18 +6,7 @@ import scipy.linalg as spl
 from quadcopter import Quadcopter
 from simulator import Simulator
 from plottingTools import plotTimeTrajectories
-
-
-def computeInfiniteHorizonLqrGains(A, B, Q, R):
-    P = spl.solve_continuous_are(A, B, Q, R)
-    K = np.linalg.inv(R) @ B.T @ P
-    return K
-
-
-def lqrController(x, x0, u0, K):
-    x_fb = x[:8]
-    control = -K @ (x_fb - x0) + u0
-    return control
+from lqrUtils import computeInfiniteHorizonLqrGains, infiniteHorizonLqrController
 
 
 def main():
@@ -43,7 +32,7 @@ def main():
 
     # Simple Simulation
     dyn_fun = lambda t, x, u: ac.inertialDynamics(x, u)
-    control_fun = lambda t, x: lqrController(x, xTrim, uTrim, K)
+    control_fun = lambda t, x: infiniteHorizonLqrController(x[:8], xTrim, uTrim, K)
     t_span = (0, T)
     t_eval = np.arange(0, T, dt)
     sim = Simulator(dyn_fun, control_fun, t_span, x0, t_eval=t_eval)

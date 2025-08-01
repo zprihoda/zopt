@@ -4,12 +4,12 @@ A random collection of small projects
 ## TODO:
 - LQR Demo
     - Write quadcopter animation
-    - Create lqrUtil to track common lqr functions
-    - Add relevant tests for all of the above (lqrControl, simulator, plottingTools, animationTools, lqrUtil)
     - Move lqrControl to demo folder, add "long" tests for demos
+    - Add finite horizon LQR demo
     - Add integral LQR demo
     - Add tracking LQR demo
     - Add iterative LQR demo
+    - Add discrete LQR (for all of the above?)
 - Simulator:
     - Add support for controller states (eg. for integrators)
     - Add support for discrete controllers?
