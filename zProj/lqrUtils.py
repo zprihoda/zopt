@@ -1,5 +1,4 @@
 import numpy as np
-import numpy.linalg as npl
 import scipy.linalg as spl
 import scipy.integrate as spi
 
@@ -39,13 +38,12 @@ def _lqrHjb(
     A: Callable[[float], np.ndarray],
     B: Callable[[float], np.ndarray],
     Q: Callable[[float], np.ndarray],
-    R: Callable[[float], np.ndarray],
+    R_inv: Callable[[float], np.ndarray],
     n: int
 ) -> np.ndarray:
     """LQR Hamilton Jacobia Bellman equation"""
-    # TODO: Resolve inverse. Either: use npl.solve, pass R_inv function directly as argument
     V = V.reshape((n, n))
-    dV = -Q(t) + V @ B(t) @ npl.inv(R(t)) @ B(t).T @ V - V @ A(t) - A(t).T @ V
+    dV = -Q(t) + V @ B(t) @ R_inv(t) @ B(t).T @ V - V @ A(t) - A(t).T @ V
     dV = dV.reshape(-1)
     return dV
 
@@ -54,7 +52,7 @@ def finiteHorizonLqr(
     A: Callable[[float], np.ndarray],
     B: Callable[[float], np.ndarray],
     Q: Callable[[float], np.ndarray],
-    R: Callable[[float], np.ndarray],
+    R_inv: Callable[[float], np.ndarray],
     Qf: np.ndarray,
     T: float
 ) -> Callable[[float], np.ndarray]:
@@ -72,7 +70,7 @@ def finiteHorizonLqr(
         A : State-space state matrix as a function of time: `A(t)`
         B : State-space input matrix as a function of time: `B(t)`
         Q : State cost matrix as a function of time: `Q(t)`
-        R : Control cost matrix as a function of time: `R(t)`
+        R_inv : Inverse of control cost matrix as a function of time: `R_inv(t)`
         Qf : Terminal state cost matrix
         T : Time horizon
 
@@ -82,9 +80,9 @@ def finiteHorizonLqr(
     """
     V0 = Qf.reshape(-1)
     n = A(0).shape[0]
-    dV = lambda t, V: _lqrHjb(t, V, A, B, Q, R, n)
+    dV = lambda t, V: _lqrHjb(t, V, A, B, Q, R_inv, n)
     out = spi.solve_ivp(dV, (T, 0), V0, dense_output=True)
-    K = lambda t: npl.inv(R(t)) @ B(t).T @ out.sol(t).reshape((n, n))
+    K = lambda t: R_inv(t) @ B(t).T @ out.sol(t).reshape((n, n))
     return K
 
 

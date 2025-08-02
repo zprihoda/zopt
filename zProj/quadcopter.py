@@ -1,6 +1,8 @@
 import jax
 import jax.numpy as jnp
-import jax.scipy.optimize as jspo
+import scipy.optimize as spo
+
+jax.config.update("jax_enable_x64", True)
 
 
 class Quadcopter():
@@ -162,7 +164,7 @@ class Quadcopter():
         z0 = jnp.concatenate([x0, u0])
         trimFunc = lambda z: jnp.sum(self.rigidBodyDynamics(*_getXu(z))**2)
         trimFunc = jax.jit(trimFunc)
-        out = jspo.minimize(trimFunc, z0, method="BFGS")
+        out = spo.minimize(trimFunc, z0, method="BFGS")
 
         if not out.success:
             raise RuntimeError("Trim failed")

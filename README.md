@@ -3,12 +3,11 @@ A random collection of small projects
 
 ## TODO:
 - Tasks:
-    - Write quadcopter animation
-    - Add finite horizon LQR demo
     - Add integral LQR demo
     - Add tracking LQR demo
     - Add iterative LQR demo
     - Add discrete LQR (for all of the above?)
+    - Write quadcopter animation
 - Simulator:
     - Add support for controller states (eg. for integrators)
     - Add support for discrete controllers?
@@ -20,7 +19,7 @@ A random collection of small projects
 - Quadcopter:
     - Consider structured arrays (or something similar) to clean up state interface
         - Can then also update other tools to work with structured arrays
-    - Speed up trim, consider [optimistix](https://github.com/patrick-kidger/optimistix)
+    - Consider [optimistix](https://github.com/patrick-kidger/optimistix) for trim
     - Add rotor dynamics
         - Add min/max rpm
     - Add rigid-body / rotor dynamics cross-coupling
@@ -30,3 +29,4 @@ A random collection of small projects
         - Include rotor dynamics
 - Project Config
     - Look into replacing flake8+yapf with ruff
+    - Document flake8 ignore list
