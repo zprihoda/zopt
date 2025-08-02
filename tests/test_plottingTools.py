@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 
 from zProj.plottingTools import plotTimeTrajectories
 

@@ -1,6 +1,8 @@
 import jax
 import jax.numpy as jnp
-import jax.scipy.optimize as jspo
+import scipy.optimize as spo
+
+jax.config.update("jax_enable_x64", True)
 
 
 class Quadcopter():
@@ -27,9 +29,13 @@ class Quadcopter():
         sth = jnp.sin(theta)
         cpsi = jnp.cos(psi)
         spsi = jnp.sin(psi)
-        R = jnp.array([[cth * cpsi, sphi * sth * cpsi - cphi * spsi, cphi * sth * cpsi - sphi * spsi],
-                       [cth * spsi, sphi * sth * spsi + cphi * cpsi, cphi * sth * spsi - sphi * cpsi],
-                       [-sth, sphi * cth, cphi * cth]])
+        R = jnp.array(
+            [
+                [cth * cpsi, sphi * sth * cpsi - cphi * spsi, cphi * sth * cpsi - sphi * spsi],
+                [cth * spsi, sphi * sth * spsi + cphi * cpsi, cphi * sth * spsi - sphi * cpsi],
+                [-sth, sphi * cth, cphi * cth],
+            ]
+        )
         return R
 
     def _bodyRatesToEulerRatesRotationMatrix(self, phi: float, theta: float) -> jnp.ndarray:
@@ -42,7 +48,8 @@ class Quadcopter():
         return R_rates2Eul
 
     def getAeroForceMomemnts(
-        self, state: jnp.ndarray, windBody: jnp.ndarray = jnp.zeros(3)) -> tuple[jnp.ndarray, jnp.ndarray]:
+        self, state: jnp.ndarray, windBody: jnp.ndarray = jnp.zeros(3)
+    ) -> tuple[jnp.ndarray, jnp.ndarray]:
         """Compute the aero force/moments"""
         uvw = state[0:3]
         pqr = state[3:6]
@@ -58,8 +65,9 @@ class Quadcopter():
         moment_aero = moment_lin * pqr
         return force_aero, moment_aero
 
-    def rigidBodyDynamics(self, state: jnp.ndarray, control: jnp.ndarray,
-                          wind_ned: jnp.ndarray = jnp.zeros(3)) -> jnp.ndarray:
+    def rigidBodyDynamics(
+        self, state: jnp.ndarray, control: jnp.ndarray, wind_ned: jnp.ndarray = jnp.zeros(3)
+    ) -> jnp.ndarray:
         """
         Rigid-body dynamics function for quadcopter `xDot = f(x,u)`
 
@@ -107,8 +115,9 @@ class Quadcopter():
 
         return dState
 
-    def inertialDynamics(self, state: jnp.ndarray, control: jnp.ndarray,
-                         wind_ned: jnp.ndarray = jnp.zeros(3)) -> jnp.ndarray:
+    def inertialDynamics(
+        self, state: jnp.ndarray, control: jnp.ndarray, wind_ned: jnp.ndarray = jnp.zeros(3)
+    ) -> jnp.ndarray:
         """
         Dynamics function for quadcopter with position states `xDot = f(x,u)`
 
@@ -155,7 +164,7 @@ class Quadcopter():
         z0 = jnp.concatenate([x0, u0])
         trimFunc = lambda z: jnp.sum(self.rigidBodyDynamics(*_getXu(z))**2)
         trimFunc = jax.jit(trimFunc)
-        out = jspo.minimize(trimFunc, z0, method="BFGS")
+        out = spo.minimize(trimFunc, z0, method="BFGS")
 
         if not out.success:
             raise RuntimeError("Trim failed")

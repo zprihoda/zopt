@@ -5,13 +5,15 @@ from typing import Callable
 
 class Simulator():
 
-    def __init__(self,
-                 dyn_fun: Callable[[float, np.ndarray, np.ndarray], np.ndarray],
-                 control_fun: Callable[[float, np.ndarray], np.ndarray],
-                 t_span: tuple[float, float],
-                 x0: np.ndarray,
-                 method: str = "RK45",
-                 t_eval: np.ndarray | None = None):
+    def __init__(
+        self,
+        dyn_fun: Callable[[float, np.ndarray, np.ndarray], np.ndarray],
+        control_fun: Callable[[float, np.ndarray], np.ndarray],
+        t_span: tuple[float, float],
+        x0: np.ndarray,
+        method: str = "RK45",
+        t_eval: np.ndarray | None = None
+    ):
         """
         Initialize a Simulator object
 
