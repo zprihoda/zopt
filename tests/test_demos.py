@@ -6,15 +6,13 @@ from glob import glob
 
 testDir = os.path.dirname(__file__)
 demoPattern = os.path.join(testDir, "..", "demos", "[!_]*.py")
-demoList = glob(demoPattern)
-
+demoList = [os.path.basename(demo).replace(".py","") for demo in glob(demoPattern)]
 
 @pytest.mark.slow
 @pytest.mark.parametrize("demo", demoList)
 def test_demos(monkeypatch, demo):
     try:
-        demo_name = os.path.basename(demo).replace(".py", "")
         monkeypatch.setattr("matplotlib.pyplot.show", lambda: None)
-        runpy.run_module("demos." + demo_name, run_name="__main__")
+        runpy.run_module("demos." + demo, run_name="__main__")
     except Exception as e:
-        pytest.fail(f"'{demo_name}' failed during execution: {e}")
+        pytest.fail(f"'{demo}' failed during execution: {e}")
