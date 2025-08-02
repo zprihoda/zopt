@@ -27,9 +27,12 @@ class Quadcopter():
         sth = jnp.sin(theta)
         cpsi = jnp.cos(psi)
         spsi = jnp.sin(psi)
-        R = jnp.array([[cth * cpsi, sphi * sth * cpsi - cphi * spsi, cphi * sth * cpsi - sphi * spsi],
-                       [cth * spsi, sphi * sth * spsi + cphi * cpsi, cphi * sth * spsi - sphi * cpsi],
-                       [-sth, sphi * cth, cphi * cth]])
+        R = jnp.array(
+            [
+                [cth * cpsi, sphi * sth * cpsi - cphi * spsi, cphi * sth * cpsi - sphi * spsi],
+                [cth * spsi, sphi * sth * spsi + cphi * cpsi, cphi * sth * spsi - sphi * cpsi],
+                [-sth, sphi * cth, cphi * cth],
+            ])
         return R
 
     def _bodyRatesToEulerRatesRotationMatrix(self, phi: float, theta: float) -> jnp.ndarray:
@@ -58,8 +61,8 @@ class Quadcopter():
         moment_aero = moment_lin * pqr
         return force_aero, moment_aero
 
-    def rigidBodyDynamics(self, state: jnp.ndarray, control: jnp.ndarray,
-                          wind_ned: jnp.ndarray = jnp.zeros(3)) -> jnp.ndarray:
+    def rigidBodyDynamics(
+        self, state: jnp.ndarray, control: jnp.ndarray, wind_ned: jnp.ndarray = jnp.zeros(3)) -> jnp.ndarray:
         """
         Rigid-body dynamics function for quadcopter `xDot = f(x,u)`
 
@@ -107,8 +110,8 @@ class Quadcopter():
 
         return dState
 
-    def inertialDynamics(self, state: jnp.ndarray, control: jnp.ndarray,
-                         wind_ned: jnp.ndarray = jnp.zeros(3)) -> jnp.ndarray:
+    def inertialDynamics(
+        self, state: jnp.ndarray, control: jnp.ndarray, wind_ned: jnp.ndarray = jnp.zeros(3)) -> jnp.ndarray:
         """
         Dynamics function for quadcopter with position states `xDot = f(x,u)`
 
