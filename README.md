@@ -2,9 +2,8 @@
 A random collection of small projects
 
 ## TODO:
-- LQR Demo
+- Tasks:
     - Write quadcopter animation
-    - Move lqrControl to demo folder, add "long" tests for demos
     - Add finite horizon LQR demo
     - Add integral LQR demo
     - Add tracking LQR demo
@@ -19,6 +18,8 @@ A random collection of small projects
     - Add support for structured arrays, can auto-extract names
     - Add plot positionTrajectory (or generic phase plot?)
 - Quadcopter:
+    - Consider structured arrays (or something similar) to clean up state interface
+        - Can then also update other tools to work with structured arrays
     - Speed up trim, consider [optimistix](https://github.com/patrick-kidger/optimistix)
     - Add rotor dynamics
         - Add min/max rpm
@@ -27,6 +28,5 @@ A random collection of small projects
     - Add generic dynamics function with options
         - Include inertial dynamics
         - Include rotor dynamics
-- General
-    - Consider structured arrays (or something similar) to clean up state interface
+- Project Config
     - Look into replacing flake8+yapf with ruff
