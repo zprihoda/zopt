@@ -1,7 +1,5 @@
-import jax
 import matplotlib.pyplot as plt
 import numpy as np
-import scipy.linalg as spl
 
 from zProj.quadcopter import Quadcopter
 from zProj.simulator import Simulator
