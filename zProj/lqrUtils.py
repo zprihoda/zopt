@@ -87,15 +87,6 @@ def finiteHorizonLqr(
 
 
 ## Basic LQR Controllers
-def infiniteHorizonLqrController(x, x0, u0, K):
+def proportionalFeedbackController(x, x0, u0, K):
     control = -K @ (x - x0) + u0
     return control
-
-
-A = B = Q = R = lambda t: np.eye(2)
-Qf = np.eye(2)
-T = 10
-K = finiteHorizonLqr(A, B, Q, R, Qf, T)
-print(K(0))
-print(K(5))
-print(K(10))

@@ -13,7 +13,6 @@ demoList = glob(demoPattern)
 @pytest.mark.parametrize("demo", demoList)
 def test_demos(monkeypatch, demo):
     try:
-        # Import the script as a module to execute its top-level code
         demo_name = os.path.basename(demo).replace(".py", "")
         monkeypatch.setattr("matplotlib.pyplot.show", lambda: None)
         runpy.run_module("demos." + demo_name, run_name="__main__")

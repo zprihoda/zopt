@@ -4,7 +4,7 @@ import numpy as np
 from zProj.quadcopter import Quadcopter
 from zProj.simulator import Simulator
 from zProj.plottingTools import plotTimeTrajectories
-from zProj.lqrUtils import computeInfiniteHorizonLqrGains, infiniteHorizonLqrController
+from zProj.lqrUtils import finiteHorizonLqr, proportionalFeedbackController
 
 
 def main():
@@ -12,9 +12,10 @@ def main():
     uvwTrim = np.zeros(3)
     Q = np.eye(8)
     R = np.eye(4)
+    Qf = 10 * np.eye(8)
     x0 = np.zeros(12)
     x0[0:3] = 1
-    T = 10
+    T = 5
     dt = 0.1
 
     # Get linearized system
@@ -26,11 +27,15 @@ def main():
     B = B[:8, :]
 
     # Design LQR controller
-    K = computeInfiniteHorizonLqrGains(A, B, Q, R)
+    At = lambda t: A
+    Bt = lambda t: B
+    Qt = lambda t: Q
+    Rt = lambda t: R
+    K = finiteHorizonLqr(At, Bt, Qt, Rt, Qf, T)
 
     # Simple Simulation
     dyn_fun = lambda t, x, u: ac.inertialDynamics(x, u)
-    control_fun = lambda t, x: infiniteHorizonLqrController(x[:8], xTrim, uTrim, K)
+    control_fun = lambda t, x: proportionalFeedbackController(x[:8], xTrim, uTrim, K(t))
     t_span = (0, T)
     t_eval = np.arange(0, T, dt)
     sim = Simulator(dyn_fun, control_fun, t_span, x0, t_eval=t_eval)
