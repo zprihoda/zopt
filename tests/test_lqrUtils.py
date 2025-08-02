@@ -39,7 +39,7 @@ def test_finiteHorizonLqr():
 
     # Analytical solution to the scalar form of the above Ricatti equation
     K_exp = lambda t: ((1+np.sqrt(2))*np.exp(2*np.sqrt(2)) - (np.sqrt(2) - 1)*np.exp(2*np.sqrt(2)*t)) / \
-        ( np.exp(2*np.sqrt(2)*t) + np.exp(2*np.sqrt(2)) )
+        (np.exp(2*np.sqrt(2)*t) + np.exp(2*np.sqrt(2)))
     assert K(0) == pytest.approx(K_exp(0) * np.eye(2), rel=1e-3)
 
 

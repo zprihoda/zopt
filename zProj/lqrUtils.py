@@ -34,13 +34,14 @@ def infiniteHorizonLqr(A: np.ndarray, B: np.ndarray, Q: np.ndarray, R: np.ndarra
 
 
 def _lqrHjb(
-        t: float,
-        V: np.ndarray,
-        A: Callable[[float], np.ndarray],
-        B: Callable[[float], np.ndarray],
-        Q: Callable[[float], np.ndarray],
-        R: Callable[[float], np.ndarray],
-        n: int) -> np.ndarray:
+    t: float,
+    V: np.ndarray,
+    A: Callable[[float], np.ndarray],
+    B: Callable[[float], np.ndarray],
+    Q: Callable[[float], np.ndarray],
+    R: Callable[[float], np.ndarray],
+    n: int
+) -> np.ndarray:
     """LQR Hamilton Jacobia Bellman equation"""
     # TODO: Resolve inverse. Either: use npl.solve, pass R_inv function directly as argument
     V = V.reshape((n, n))
@@ -50,12 +51,13 @@ def _lqrHjb(
 
 
 def finiteHorizonLqr(
-        A: Callable[[float], np.ndarray],
-        B: Callable[[float], np.ndarray],
-        Q: Callable[[float], np.ndarray],
-        R: Callable[[float], np.ndarray],
-        Qf: np.ndarray,
-        T: float) -> Callable[[float], np.ndarray]:
+    A: Callable[[float], np.ndarray],
+    B: Callable[[float], np.ndarray],
+    Q: Callable[[float], np.ndarray],
+    R: Callable[[float], np.ndarray],
+    Qf: np.ndarray,
+    T: float
+) -> Callable[[float], np.ndarray]:
     """
     Compute the finite horizon LQR gains by numerically integrating the LQR HJB equation
 
