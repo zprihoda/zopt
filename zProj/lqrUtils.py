@@ -85,7 +85,10 @@ def finiteHorizonLqr(
     K = lambda t: R_inv(t) @ B(t).T @ out.sol(t).reshape((n, n))
     return K
 
-def infiniteHorizonIntegralLqr(A: np.ndarray, B: np.ndarray, Q: np.ndarray, R: np.ndarray, Qi: np.ndarray, Ci: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+
+def infiniteHorizonIntegralLqr(
+    A: np.ndarray, B: np.ndarray, Q: np.ndarray, R: np.ndarray, Qi: np.ndarray, Ci: np.ndarray
+) -> tuple[np.ndarray, np.ndarray]:
     """
     Compute infinite horizon integral LQR gains for the standard decoupled state-control LQR cost function
 
@@ -111,35 +114,26 @@ def infiniteHorizonIntegralLqr(A: np.ndarray, B: np.ndarray, Q: np.ndarray, R: n
         Kp : Proportional gains
     """
     n_i = Qi.shape[0]
-    n_x,n_u = B.shape
+    n_x, n_u = B.shape
 
     # Form integral augmented system
-    Aw = np.block([[np.zeros((n_i,n_i)), Ci],
-                   [np.zeros((n_x,n_i)), A]])
-    Bw = np.vstack([np.zeros((n_i,n_u)), B])
+    Aw = np.block([[np.zeros((n_i, n_i)), Ci], [np.zeros((n_x, n_i)), A]])
+    Bw = np.vstack([np.zeros((n_i, n_u)), B])
     Qw = spl.block_diag(Qi, Q)
 
     # Solve for LQR gains
     K = infiniteHorizonLqr(Aw, Bw, Qw, R)
-    Ki = K[:,:n_i]
-    Kp = K[:,n_i:]
+    Ki = K[:, :n_i]
+    Kp = K[:, n_i:]
 
     return Ki, Kp
+
 
 ## Basic LQR Controllers
 def proportionalFeedbackController(x, x0, u0, K):
     control = -K @ (x - x0) + u0
     return control
 
+
 def PiFeedbackController(x, x0, u0, Ki, Kp, Ci):
     pass
-
-A = np.eye(3)
-B = np.eye(3)
-Q = np.eye(3)
-R = np.eye(3)
-Qi = np.eye(3)
-Ci = np.eye(3)
-Ki,Kp = infiniteHorizonIntegralLqr(A, B, Q, R, Qi, Ci)
-print(Ki)
-print(Kp)
