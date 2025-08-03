@@ -69,7 +69,7 @@ class Quadcopter():
     @partial(jax.jit, static_argnames=['self'])
     def rigidBodyDynamics(
         self, state: jnp.ndarray, control: jnp.ndarray, wind_body: jnp.ndarray = jnp.zeros(3)
-    ) -> jnp.ndarray | tuple[jnp.ndarray, jnp.ndarray]:
+    ) -> jnp.ndarray:
         """
         Rigid-body dynamics function for quadcopter `xDot = f(x,u)`
 
@@ -78,8 +78,6 @@ class Quadcopter():
             state : aircraft state, [u,v,w,p,q,r,phi,theta]
             control : control input, [-fz,mx,my,mz]   (all mass/inertia normalized, accelerations)
             wind_body : wind in the body frame
-            returnRotMat : Flag to return body to inertial rotation matrix
-                Intended for use by inertial dynamics to avoid unnecessary recomputation
 
         Returns
         -------
