@@ -15,10 +15,6 @@ class Quadcopter():
         self.I = jnp.eye(3)  # Inertia tensor
         self.I_inv = jnp.linalg.inv(self.I)
 
-        # Internal instance variables
-        self._R_b2i = jnp.eye(3)
-        self._R_rates2Eul = jnp.eye(3)
-
         self._linFunc = jax.jit(jax.jacobian(self.rigidBodyDynamics, argnums=(0, 1)))
 
     def _bodyToInertialRotationMatrix(self, phi: float, theta: float, psi: float) -> jnp.ndarray:
@@ -66,8 +62,12 @@ class Quadcopter():
         return force_aero, moment_aero
 
     def rigidBodyDynamics(
-        self, state: jnp.ndarray, control: jnp.ndarray, wind_ned: jnp.ndarray = jnp.zeros(3)
-    ) -> jnp.ndarray:
+        self,
+        state: jnp.ndarray,
+        control: jnp.ndarray,
+        wind_ned: jnp.ndarray = jnp.zeros(3),
+        returnRotMat: bool = False
+    ) -> jnp.ndarray | tuple[jnp.ndarray, jnp.ndarray]:
         """
         Rigid-body dynamics function for quadcopter `xDot = f(x,u)`
 
@@ -76,6 +76,8 @@ class Quadcopter():
             state : aircraft state, [u,v,w,p,q,r,phi,theta,psi]
             control : control input, [-fz,mx,my,mz]   (all mass/inertia normalized, accelerations)
             wind_ned : wind in the north-east-down frame
+            returnRotMat : Flag to return body to inertial rotation matrix
+                Intended for use by inertial dynamics to avoid unnecessary recomputation
 
         Returns
         -------
@@ -91,9 +93,6 @@ class Quadcopter():
         # Get rotation matrices
         R_b2i = self._bodyToInertialRotationMatrix(phi, theta, psi)
         R_rates2Eul = self._bodyRatesToEulerRatesRotationMatrix(phi, theta)
-
-        self._R_b2i = R_b2i
-        self._R_rates2Eul = R_rates2Eul
 
         # Get total force / moments in body axis
         wind_body = R_b2i.T @ wind_ned
@@ -113,7 +112,11 @@ class Quadcopter():
 
         dState = jnp.concatenate([uvwDot, pqrDot, eulDot])
 
-        return dState
+        if returnRotMat:
+            out = (dState, R_b2i)
+        else:
+            out = dState
+        return out
 
     def inertialDynamics(
         self, state: jnp.ndarray, control: jnp.ndarray, wind_ned: jnp.ndarray = jnp.zeros(3)
@@ -131,10 +134,9 @@ class Quadcopter():
         -------
             dState : time derivative of state
         """
-        xDot_rb = self.rigidBodyDynamics(state[:9], control, wind_ned=wind_ned)
-
+        (xDot_rb, R_b2i) = self.rigidBodyDynamics(state[:9], control, wind_ned=wind_ned, returnRotMat=True)
         uvw = state[0:3]
-        xyzDot = self._R_b2i @ uvw
+        xyzDot = R_b2i @ uvw
         xDot_inertial = jnp.concatenate([xDot_rb, xyzDot])
         return xDot_inertial
 

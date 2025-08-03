@@ -2,20 +2,19 @@
 A random collection of small projects
 
 ## TODO:
-- General
-        - Move it into the required demos?
-        - Or create a controllers modules with common controllers?
+- Short Tasks:
+    - Create controllers module
+        - Move proportionalFeedbackController from lqrUtils to controllers
+        - Add integral controller from integralLqrControl demo.
+        - Create/move tests
+
 - Tasks:
     - Add tracking LQR demo
     - Add iterative LQR demo
     - Add discrete LQR (for all of the above?)
     - Write quadcopter animation
-    - Create controllers module
-        - Move proportionalFeedbackController from lqrUtils to controllers
-        - Add integral controller from integralLqrControl demo.
-        - Consider other common controller types? q
+
 - Simulator:
-    - Add support for controller states (eg. for integrators)
     - Add support for discrete controllers?
     - Jit the step function? Will that work in a class?
     - Use diffrax for ode integration?
