@@ -2,6 +2,8 @@ import jax
 import jax.numpy as jnp
 import scipy.optimize as spo
 
+from functools import partial
+
 jax.config.update("jax_enable_x64", True)
 
 
@@ -61,6 +63,7 @@ class Quadcopter():
         moment_aero = moment_lin * pqr
         return force_aero, moment_aero
 
+    @partial(jax.jit, static_argnames=['self', 'returnRotMat'])
     def rigidBodyDynamics(
         self,
         state: jnp.ndarray,
@@ -118,6 +121,7 @@ class Quadcopter():
             out = dState
         return out
 
+    @partial(jax.jit, static_argnames=['self'])
     def inertialDynamics(
         self, state: jnp.ndarray, control: jnp.ndarray, wind_ned: jnp.ndarray = jnp.zeros(3)
     ) -> jnp.ndarray:
