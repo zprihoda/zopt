@@ -94,7 +94,7 @@ def infiniteHorizonIntegralLqr(
 
     ```
     J = int_t( z^T Q_i z + x^T Q x + u^T R u)
-    z = int_t( C_i x )
+    zDot = C_i x
     xDot = A x + B u
     uLqr = -K x
     ```

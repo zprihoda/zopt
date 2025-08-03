@@ -3,7 +3,7 @@ import numpy as np
 
 from zProj.quadcopter import Quadcopter
 from zProj.simulator import Simulator
-from zProj.plottingTools import plotTimeTrajectories
+from zProj.plottingTools import plotTimeTrajectory
 from zProj.lqrUtils import infiniteHorizonLqr, proportionalFeedbackController
 
 
@@ -38,11 +38,11 @@ def main():
     tArr, xArr, _, uArr = sim.simulate()
 
     # Plot Results
-    stateGroupNames = ["Body Velocities (m/s)", "Body Rates (rad/s)", "Euler Angles (rad)", "Positions (m)"]
-    stateGroups = [['u', 'v', 'w'], ['p', 'q', 'r'], ['phi', 'theta', 'psi'], ['x', 'y', 'z']]
-    controlGroupNames = ["Accel Commands (m/s^2, rad/s^2)"]
-    controlGroups = [['thrust', 'pDot', 'qDot', 'rDot']]
-    plotTimeTrajectories(tArr, xArr, uArr, stateGroupNames, stateGroups, controlGroupNames, controlGroups)
+    plotTimeTrajectory(tArr, xArr[:, 0:3], names=['u', 'v', 'w'], title="Body Velocities")
+    plotTimeTrajectory(tArr, xArr[:, 3:6], names=['p', 'q', 'r'], title="Body Rates")
+    plotTimeTrajectory(tArr, xArr[:, 6:9], names=['phi', 'theta', 'psi'], title="Euler Angles")
+    plotTimeTrajectory(tArr, xArr[:, 9:12], names=['x', 'y', 'z'], title="Positions")
+    plotTimeTrajectory(tArr, uArr, names=["thrust", "pDot", "qDot", "rDot"], title="Pseudo Controls")
     plt.show()
 
 

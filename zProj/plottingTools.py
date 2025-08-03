@@ -1,30 +1,30 @@
 import matplotlib.pyplot as plt
 
 
-def plotTimeTrajectories(tArr, xArr, uArr, stateGroupNames, stateGroups, controlGroupNames, controlGroups):
+def plotTimeTrajectory(tArr, xArr, names=None, title=None):
+    """
+    Plot an array of time trajectories in separate subplots
 
-    # Plot State groups
-    idx = 0
-    for ii in range(len(stateGroupNames)):
-        nx = len(stateGroups[ii])
-        fig, axs = plt.subplots(nx, 1, sharex=True, squeeze=False)
-        for jj in range(nx):
-            axs[jj, 0].plot(tArr, xArr[:, idx])
-            idx += 1
-            axs[jj, 0].set_ylabel(stateGroups[ii][jj])
-            axs[jj, 0].grid()
-        axs[nx - 1, 0].set_xlabel("time (s)")
-        fig.suptitle(stateGroupNames[ii])
+    Arguments
+    --------
+        tArr: Time array of size (N,)
+        xArr: State array of size (N,nx)
+        names: Name of each state for ylabel
+        title: title for plot
+    """
 
-    # Plot Control Groups
     idx = 0
-    for ii in range(len(controlGroupNames)):
-        nx = len(controlGroups[ii])
-        fig, axs = plt.subplots(nx, 1, sharex=True, squeeze=False)
-        for jj in range(nx):
-            axs[jj, 0].plot(tArr, uArr[:, idx])
-            idx += 1
-            axs[jj, 0].set_ylabel(controlGroups[ii][jj])
-            axs[jj, 0].grid()
-        axs[nx - 1, 0].set_xlabel("time (s)")
-        fig.suptitle(controlGroupNames[ii])
+    nx = xArr.shape[1]
+    if names is None:
+        names = ["x{i}" for i in range(nx)]
+
+    fig, axs = plt.subplots(nx, 1, sharex=True, squeeze=False)
+    for ii in range(nx):
+        axs[ii, 0].plot(tArr, xArr[:, idx])
+        idx += 1
+        axs[ii, 0].set_ylabel(names[ii])
+        axs[ii, 0].grid()
+    axs[nx - 1, 0].set_xlabel("time (s)")
+
+    if title is not None:
+        axs[0, 0].set_title(title)
