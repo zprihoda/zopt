@@ -9,10 +9,9 @@ A random collection of small projects
         - Create/move tests
 
 - Tasks:
-    - Add iterative LQR demo
     - Add discrete LQR (for all of the above?)
+    - Add iterative LQR demo
     - Write quadcopter animation
-
 - Simulator:
     - Add support for discrete controllers?
     - Jit the step function? Will that work in a class?
@@ -21,8 +20,6 @@ A random collection of small projects
     - Add support for structured arrays, can auto-extract names
     - Rename plotTrajectory to plotTrajectorySubplots
     - Add plotTrajectorySingleAx (plots multiple signals on one axis)
-    - Add fig/axs optional arguments (plot on the specified figure / axes)
-    - Consider general function with
     - Add plot positionTrajectory (or generic phase plot?)
 - Quadcopter:
     - Consider structured arrays (or something similar) to clean up state interface

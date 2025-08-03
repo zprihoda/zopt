@@ -28,9 +28,12 @@ def getOpenLoopTrajectory(
     # Setup and solve CVX problem
     xTraj = cvx.Variable((nt, nx))
     du = cvx.Variable((nt, nu))
+    du_dt_max = dt*np.array([1,1,1,1])  # Limit rate of change of control variables
     objective = cvx.Minimize(cvx.sum(cvx.norm(du, axis=1)))
     constraints = [xTraj[0] == x0, xTraj[-1] == xf]
     constraints += [xTraj[i + 1] == xTraj[i] + dt * (A @ xTraj[i] + B @ du[i]) for i in range(nt - 1)]
+    constraints += [du[0] == 0]
+    constraints += [cvx.abs(du[i+1]-du[i]) <= du_dt_max for i in range(nt-1)]
     prob = cvx.Problem(objective, constraints)
     prob.solve()
 
@@ -92,19 +95,19 @@ def main():
     uTrajArr = uTraj(tArr)
     fig = plotTimeTrajectory(tArr, xDynArr[:, 0:3], names=['u', 'v', 'w'], title="Body Velocities")
     plotTimeTrajectory(tArr, xTrajArr[:, 0:3], fig=fig)
-    plt.legend(["State", "Trajectory"])
+    plt.legend(["Simulated", "Design Trajectory"])
     fig = plotTimeTrajectory(tArr, xDynArr[:, 3:6], names=['p', 'q', 'r'], title="Body Rates")
     plotTimeTrajectory(tArr, xTrajArr[:, 3:6], fig=fig)
-    plt.legend(["State", "Trajectory"])
+    plt.legend(["Simulated", "Design Trajectory"])
     fig = plotTimeTrajectory(tArr, xDynArr[:, 6:9], names=['phi', 'theta', 'psi'], title="Euler Angles")
     plotTimeTrajectory(tArr, xTrajArr[:, 6:9], fig=fig)
-    plt.legend(["State", "Trajectory"])
+    plt.legend(["Simulated", "Design Trajectory"])
     fig = plotTimeTrajectory(tArr, xDynArr[:, 9:12], names=['x', 'y', 'z'], title="Positions")
     plotTimeTrajectory(tArr, xTrajArr[:, 9:12], fig=fig)
-    plt.legend(["State", "Trajectory"])
+    plt.legend(["Simulated", "Design Trajectory"])
     fig = plotTimeTrajectory(tArr, uArr, names=["thrust", "pDot", "qDot", "rDot"], title="Pseudo Controls")
     plotTimeTrajectory(tArr, uTrajArr, fig=fig)
-    plt.legend(["State", "Trajectory"])
+    plt.legend(["Simulated", "Design Trajectory"])
     plotTimeTrajectory(tArr, xCtrlArr, names=["x", "y", "z"], title="Controller Integral State")
 
     plt.show()
