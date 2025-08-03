@@ -57,6 +57,28 @@ def test_infiniteHorizonIntegralLqr():
     assert Kp == pytest.approx(Kp_exp)
 
 
+def test_discreteFiniteHorizonLqr():
+    N = 2
+    A = np.repeat(np.eye(2)[None, :, :], N, axis=0)
+    B = np.repeat(np.eye(2)[None, :, :], N, axis=0)
+    Q = np.repeat(np.eye(2)[None, :, :], N, axis=0)
+    R = np.repeat(np.eye(2)[None, :, :], N, axis=0)
+    Q_N = np.eye(2)
+    K = lqr.discreteFiniteHorizonLqr(A, B, Q, R, Q_N, N)
+    assert K[1] == pytest.approx(0.5 * np.eye(2))
+    assert K[0] == pytest.approx(0.6 * np.eye(2))
+
+
+def test_discreteInfiniteHorizonLqr():
+    A = np.eye(2)
+    B = np.eye(2)
+    Q = np.eye(2)
+    R = np.eye(2)
+    K = lqr.discreteInfiniteHorizonLqr(A, B, Q, R)
+    K_exp = (1 + np.sqrt(5)) / (3 + np.sqrt(5)) * np.eye(2)  # Analytical solution, v = (1 + sqrt(5))/2, K = v/(v+1)
+    assert K == pytest.approx(K_exp)
+
+
 def test_proportionalFeedbackController():
     K = np.array([1, 1])
     x0 = np.zeros(2)

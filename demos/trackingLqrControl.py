@@ -28,12 +28,12 @@ def getOpenLoopTrajectory(
     # Setup and solve CVX problem
     xTraj = cvx.Variable((nt, nx))
     du = cvx.Variable((nt, nu))
-    du_dt_max = dt*np.array([1,1,1,1])  # Limit rate of change of control variables
+    du_dt_max = dt * np.array([1, 1, 1, 1])  # Limit rate of change of control variables
     objective = cvx.Minimize(cvx.sum(cvx.norm(du, axis=1)))
     constraints = [xTraj[0] == x0, xTraj[-1] == xf]
     constraints += [xTraj[i + 1] == xTraj[i] + dt * (A @ xTraj[i] + B @ du[i]) for i in range(nt - 1)]
     constraints += [du[0] == 0]
-    constraints += [cvx.abs(du[i+1]-du[i]) <= du_dt_max for i in range(nt-1)]
+    constraints += [cvx.abs(du[i + 1] - du[i]) <= du_dt_max for i in range(nt - 1)]
     prob = cvx.Problem(objective, constraints)
     prob.solve()
 
