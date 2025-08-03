@@ -21,9 +21,6 @@ def main():
     ac = Quadcopter()
     xTrim, uTrim = ac.trim(uvwTrim)
     A, B = ac.linearize(xTrim, uTrim)
-    xTrim = xTrim[:8]
-    A = A[:8, :8]
-    B = B[:8, :]
 
     # Design LQR controller
     K = infiniteHorizonLqr(A, B, Q, R)

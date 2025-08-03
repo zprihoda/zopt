@@ -4,7 +4,7 @@ import scipy.optimize as spo
 
 from functools import partial
 
-jax.config.update("jax_enable_x64", True)
+jax.config.update("jax_enable_x64", True)  # Required for trim minimization to converge
 
 
 class Quadcopter():
@@ -19,6 +19,7 @@ class Quadcopter():
 
         self._linFunc = jax.jit(jax.jacobian(self.rigidBodyDynamics, argnums=(0, 1)))
 
+    @partial(jax.jit, static_argnames=['self'])
     def _bodyToInertialRotationMatrix(self, phi: float, theta: float, psi: float) -> jnp.ndarray:
         """Comptue body-to-inertial rotation matrix"""
         cphi = jnp.cos(phi)
@@ -36,6 +37,7 @@ class Quadcopter():
         )
         return R
 
+    @partial(jax.jit, static_argnames=['self'])
     def _bodyRatesToEulerRatesRotationMatrix(self, phi: float, theta: float) -> jnp.ndarray:
         """Compute body-angular-rates to euler-rates rotation matrix"""
         sphi = jnp.sin(phi)
@@ -45,7 +47,8 @@ class Quadcopter():
         R_rates2Eul = jnp.array([[1, sphi * tth, cphi * tth], [0, cphi, -sphi], [0, sphi / cth, cphi / cth]])
         return R_rates2Eul
 
-    def getAeroForceMomemnts(
+    @partial(jax.jit, static_argnames=['self'])
+    def _getAeroForceMomemnts(
         self, state: jnp.ndarray, windBody: jnp.ndarray = jnp.zeros(3)
     ) -> tuple[jnp.ndarray, jnp.ndarray]:
         """Compute the aero force/moments"""
@@ -63,22 +66,18 @@ class Quadcopter():
         moment_aero = moment_lin * pqr
         return force_aero, moment_aero
 
-    @partial(jax.jit, static_argnames=['self', 'returnRotMat'])
+    @partial(jax.jit, static_argnames=['self'])
     def rigidBodyDynamics(
-        self,
-        state: jnp.ndarray,
-        control: jnp.ndarray,
-        wind_ned: jnp.ndarray = jnp.zeros(3),
-        returnRotMat: bool = False
+        self, state: jnp.ndarray, control: jnp.ndarray, wind_body: jnp.ndarray = jnp.zeros(3)
     ) -> jnp.ndarray | tuple[jnp.ndarray, jnp.ndarray]:
         """
         Rigid-body dynamics function for quadcopter `xDot = f(x,u)`
 
         Arguments
         ---------
-            state : aircraft state, [u,v,w,p,q,r,phi,theta,psi]
+            state : aircraft state, [u,v,w,p,q,r,phi,theta]
             control : control input, [-fz,mx,my,mz]   (all mass/inertia normalized, accelerations)
-            wind_ned : wind in the north-east-down frame
+            wind_body : wind in the body frame
             returnRotMat : Flag to return body to inertial rotation matrix
                 Intended for use by inertial dynamics to avoid unnecessary recomputation
 
@@ -89,20 +88,19 @@ class Quadcopter():
         # Unpack inputs
         uvw = state[0:3]
         pqr = state[3:6]
-        phi, theta, psi = state[6:9]
+        phi, theta = state[6:8]
         thrust = control[0]  # vertical acceleration (thrust)
         mxyz = control[1:4]  # angular accelerations (moments)
 
         # Get rotation matrices
-        R_b2i = self._bodyToInertialRotationMatrix(phi, theta, psi)
+        d2xyz = jnp.array([-jnp.sin(theta), jnp.sin(phi) * jnp.cos(theta), jnp.cos(phi) * jnp.cos(theta)])
         R_rates2Eul = self._bodyRatesToEulerRatesRotationMatrix(phi, theta)
 
         # Get total force / moments in body axis
-        wind_body = R_b2i.T @ wind_ned
-        force_aero, moment_aero = self.getAeroForceMomemnts(state, wind_body)
+        force_aero, moment_aero = self._getAeroForceMomemnts(state, wind_body)
 
         force_control = self.m * jnp.array([0, 0, -thrust])
-        force_gravity = self.m * self.g * R_b2i[2, :]
+        force_gravity = self.m * self.g * d2xyz
         force_total = force_control + force_aero + force_gravity
 
         moment_control = self.I @ mxyz
@@ -111,15 +109,10 @@ class Quadcopter():
         # Equations of motion
         uvwDot = (1 / self.m) * (-jnp.cross(pqr, uvw) + force_total)
         pqrDot = self.I_inv @ (-jnp.cross(pqr, self.I @ pqr) + moment_total)
-        eulDot = R_rates2Eul @ pqr
+        phiThetaDot = R_rates2Eul[0:2, :] @ pqr
 
-        dState = jnp.concatenate([uvwDot, pqrDot, eulDot])
-
-        if returnRotMat:
-            out = (dState, R_b2i)
-        else:
-            out = dState
-        return out
+        dState = jnp.concatenate([uvwDot, pqrDot, phiThetaDot])
+        return dState
 
     @partial(jax.jit, static_argnames=['self'])
     def inertialDynamics(
@@ -138,10 +131,18 @@ class Quadcopter():
         -------
             dState : time derivative of state
         """
-        (xDot_rb, R_b2i) = self.rigidBodyDynamics(state[:9], control, wind_ned=wind_ned, returnRotMat=True)
         uvw = state[0:3]
+        pqr = state[3:6]
+        phi, theta, psi = state[6:9]
+        R_b2i = self._bodyToInertialRotationMatrix(phi, theta, psi)
+        R_rates2Eul = self._bodyRatesToEulerRatesRotationMatrix(phi, theta)
+
+        wind_body = R_b2i.T @ wind_ned
+        xDot_rb = self.rigidBodyDynamics(state[:9], control, wind_body=wind_body)
+
+        psiDot = jnp.array([R_rates2Eul[2, :] @ pqr])
         xyzDot = R_b2i @ uvw
-        xDot_inertial = jnp.concatenate([xDot_rb, xyzDot])
+        xDot_inertial = jnp.concatenate([xDot_rb, psiDot, xyzDot])
         return xDot_inertial
 
     def trim(self, uvwTrim: jnp.ndarray) -> tuple[jnp.ndarray, jnp.ndarray]:
@@ -157,11 +158,10 @@ class Quadcopter():
             xTrim: Trim state vector
             uTrim: Trim control vector
         """
-        psiTrim = jnp.array([0])
         nxz = 5
 
         def _getXu(z):
-            x = jnp.concatenate([uvwTrim, z[:nxz], psiTrim])
+            x = jnp.concatenate([uvwTrim, z[:nxz]])
             u = z[nxz:]
             return x, u
 
@@ -184,7 +184,7 @@ class Quadcopter():
 
         Arguments
         ---------
-            x0 : State about which to linearize
+            x0 : Rigid body state about which to linearize
             u0 : Control about which to linearize
         Returns
         -------
