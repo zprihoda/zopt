@@ -1,7 +1,8 @@
 import matplotlib.pyplot as plt
+import numpy as np
 
 
-def plotTimeTrajectory(tArr, xArr, names=None, title=None):
+def plotTimeTrajectory(tArr, xArr, names=None, title=None, fig=None):
     """
     Plot an array of time trajectories in separate subplots
 
@@ -12,19 +13,28 @@ def plotTimeTrajectory(tArr, xArr, names=None, title=None):
         names: Name of each state for ylabel
         title: title for plot
     """
-
-    idx = 0
     nx = xArr.shape[1]
     if names is None:
         names = ["x{i}" for i in range(nx)]
 
-    fig, axs = plt.subplots(nx, 1, sharex=True, squeeze=False)
-    for ii in range(nx):
-        axs[ii, 0].plot(tArr, xArr[:, idx])
-        idx += 1
-        axs[ii, 0].set_ylabel(names[ii])
-        axs[ii, 0].grid()
-    axs[nx - 1, 0].set_xlabel("time (s)")
+    if fig is None:
+        newFig = True
+        fig, axs = plt.subplots(nx, 1, sharex=True, squeeze=False)
+    else:
+        newFig = False
+        axs = np.array(fig.axes).reshape((nx, 1))
 
-    if title is not None:
+    for ii in range(nx):
+        axs[ii, 0].plot(tArr, xArr[:, ii])
+
+        if newFig:
+            axs[ii, 0].set_ylabel(names[ii])
+            axs[ii, 0].grid()
+
+    if newFig:
+        axs[nx - 1, 0].set_xlabel("time (s)")
+
+    if newFig and title is not None:
         axs[0, 0].set_title(title)
+
+    return fig
