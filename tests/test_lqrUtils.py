@@ -43,11 +43,25 @@ def test_finiteHorizonLqr():
     assert K(0) == pytest.approx(K_exp(0) * np.eye(2), rel=1e-3)
 
 
+def test_infiniteHorizonIntegralLqr():
+    A = np.eye(2)
+    B = np.eye(2)
+    Q = np.eye(2)
+    R = np.eye(2)
+    Qi = np.eye(1)
+    Ci = np.array([1, 0])
+    Ki, Kp = lqr.infiniteHorizonIntegralLqr(A, B, Q, R, Qi, Ci)
+    Ki_exp = np.array([[1], [0]])
+    Kp_exp = np.diag([3, 1 + np.sqrt(2)])
+    assert Ki == pytest.approx(Ki_exp)
+    assert Kp == pytest.approx(Kp_exp)
+
+
 def test_proportionalFeedbackController():
     K = np.array([1, 1])
     x0 = np.zeros(2)
     u0 = np.array([1])
     x = np.ones(2)
-    u = lqr.proportionalFeedbackController(x, x0, u0, K)
+    u, _ = lqr.proportionalFeedbackController(x, x0, u0, K)
     u_exp = np.array([-1])
     assert u == pytest.approx(u_exp)

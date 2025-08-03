@@ -2,12 +2,18 @@
 A random collection of small projects
 
 ## TODO:
+- General
+        - Move it into the required demos?
+        - Or create a controllers modules with common controllers?
 - Tasks:
-    - Add integral LQR demo
     - Add tracking LQR demo
     - Add iterative LQR demo
     - Add discrete LQR (for all of the above?)
     - Write quadcopter animation
+    - Create controllers module
+        - Move proportionalFeedbackController from lqrUtils to controllers
+        - Add integral controller from integralLqrControl demo.
+        - Consider other common controller types? q
 - Simulator:
     - Add support for controller states (eg. for integrators)
     - Add support for discrete controllers?
@@ -15,6 +21,10 @@ A random collection of small projects
     - Use diffrax for ode integration?
 - PlottingTools
     - Add support for structured arrays, can auto-extract names
+    - Rename plotTrajectory to plotTrajectorySubplots
+    - Add plotTrajectorySingleAx (plots multiple signals on one axis)
+    - Add fig/axs optional arguments (plot on the specified figure / axes)
+    - Consider general function with
     - Add plot positionTrajectory (or generic phase plot?)
 - Quadcopter:
     - Consider structured arrays (or something similar) to clean up state interface
