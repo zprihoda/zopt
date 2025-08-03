@@ -48,12 +48,12 @@ def test_rigidBodyDynamics():
     state = np.zeros(9)
     control = np.zeros(4)
     xDot = ac.rigidBodyDynamics(state, control)
-    xDot_exp = np.array([0, 0, 9.807, 0, 0, 0, 0, 0, 0])
+    xDot_exp = np.array([0, 0, 9.807, 0, 0, 0, 0, 0])
     assert xDot == pytest.approx(xDot_exp)
 
     control = np.array([9.807, 0, 0, 0])
     xDot = ac.rigidBodyDynamics(state, control)
-    xDot_exp = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0])
+    xDot_exp = np.array([0, 0, 0, 0, 0, 0, 0, 0])
     assert xDot == pytest.approx(xDot_exp)
 
 
@@ -92,12 +92,12 @@ def test_trim():
     uvw0 = np.zeros(3)
     x0, u0 = ac.trim(uvw0)
     assert x0[0:3] == pytest.approx(uvw0)
-    assert ac.rigidBodyDynamics(x0, u0) == pytest.approx(np.zeros(9), abs=1e-3)
+    assert ac.rigidBodyDynamics(x0, u0) == pytest.approx(np.zeros(8), abs=1e-3)
 
     uvw0 = np.array([0.1, 0.2, 0.3])
     x0, u0 = ac.trim(uvw0)
     assert x0[0:3] == pytest.approx(uvw0)
-    assert ac.rigidBodyDynamics(x0, u0) == pytest.approx(np.zeros(9), abs=1e-3)
+    assert ac.rigidBodyDynamics(x0, u0) == pytest.approx(np.zeros(8), abs=1e-3)
 
 
 def test_linearize():

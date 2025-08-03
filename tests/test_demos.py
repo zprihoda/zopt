@@ -1,6 +1,7 @@
 import os
 import pytest
 import runpy
+import matplotlib.pyplot as plt
 
 from glob import glob
 
@@ -17,3 +18,4 @@ def test_demos(monkeypatch, demo):
         runpy.run_module("demos." + demo, run_name="__main__")
     except Exception as e:
         pytest.fail(f"'{demo}' failed during execution: {e}")
+    plt.close("all")
