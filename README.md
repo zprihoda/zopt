@@ -2,11 +2,6 @@
 A random collection of small projects
 
 ## TODO:
-- Tracking LQR:
-    - Plot open loop vs closed loop trajectory
-        - Requires updates to plotting tools
-    - Run Simulation with wind and/or added noise
-
 - Short Tasks:
     - Create controllers module
         - Move proportionalFeedbackController from lqrUtils to controllers
