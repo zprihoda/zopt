@@ -62,6 +62,6 @@ def test_proportionalFeedbackController():
     x0 = np.zeros(2)
     u0 = np.array([1])
     x = np.ones(2)
-    u = lqr.proportionalFeedbackController(x, x0, u0, K)
+    u, _ = lqr.proportionalFeedbackController(x, x0, u0, K)
     u_exp = np.array([-1])
     assert u == pytest.approx(u_exp)

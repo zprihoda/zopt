@@ -2,8 +2,20 @@
 A random collection of small projects
 
 ## TODO:
+- Integral LQR
+    - Generalize plotting tools
+        - Only one figure per call, just handle the splitting externally
+        - So we can call it like:
+        ```
+        plotTimeTrajectory(tArr, xArr[:,ind], names)
+        plotTimeTrajectory(tArr, xArr[:,ind2], names2)
+        plotTimeTrajectory(tArr, xCtrlArr[:,ind2], names3)
+        plotTimeTrajectory(tArr, uArr, names4)
+        ```
+    - Consider removing proportionalFeedbackController from lqrUtils.
+        - Move it into the required demos
+        - Can eventually create a common controllers module later.
 - Tasks:
-    - Add integral LQR demo
     - Add tracking LQR demo
     - Add iterative LQR demo
     - Add discrete LQR (for all of the above?)

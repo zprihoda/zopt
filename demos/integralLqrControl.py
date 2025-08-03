@@ -4,7 +4,14 @@ import numpy as np
 from zProj.quadcopter import Quadcopter
 from zProj.simulator import Simulator
 from zProj.plottingTools import plotTimeTrajectories
-from zProj.lqrUtils import finiteHorizonLqr, proportionalFeedbackController
+from zProj.lqrUtils import infiniteHorizonIntegralLqr
+
+
+def controller(xDyn, xCtrl, xTrim, uTrim, Ci, Ki, Kp, r):
+    x_fb = xDyn[:8]  # no position feedback
+    dxCtrl = Ci @ (x_fb - xTrim) - r
+    u = -Kp @ (x_fb - xTrim) - Ki @ xCtrl + uTrim
+    return u, dxCtrl
 
 
 def main():
@@ -12,11 +19,15 @@ def main():
     uvwTrim = np.zeros(3)
     Q = np.eye(8)
     R = np.eye(4)
-    Qf = 10 * np.eye(8)
-    x0 = np.zeros(12)
-    x0[0:3] = 1
-    T = 5
+    Qi = np.eye(4)
+    Ci = np.zeros((4, 8))
+    Ci[:, [0, 1, 2, 5]] = np.eye(4)
+    xDyn0 = np.zeros(12)
+    xDyn0[0:3] = 0
+    xCtrl0 = np.zeros(4)
+    T = 30
     dt = 0.1
+    r = np.array([1, 1, 1, 0.3])
 
     # Get linearized system
     ac = Quadcopter()
@@ -27,27 +38,22 @@ def main():
     B = B[:8, :]
 
     # Design LQR controller
-    At = lambda t: A
-    Bt = lambda t: B
-    Qt = lambda t: Q
-    Rt = lambda t: R
-    K = finiteHorizonLqr(At, Bt, Qt, Rt, Qf, T)
-    xCtrl0 = np.array([])
+    Ki, Kp = infiniteHorizonIntegralLqr(A, B, Q, R, Qi, Ci)
 
     # Simple Simulation
     dyn_fun = lambda t, x, u: ac.inertialDynamics(x, u)
-    control_fun = lambda t, x, xCtrl: proportionalFeedbackController(x[:8], xTrim, uTrim, K(t))
+    control_fun = lambda t, xDyn, xCtrl: controller(xDyn, xCtrl, xTrim, uTrim, Ci, Ki, Kp, r)
     t_span = (0, T)
     t_eval = np.arange(0, T, dt)
-    sim = Simulator(dyn_fun, control_fun, t_span, x0, xCtrl0, t_eval=t_eval)
-    tArr, xArr, _, uArr = sim.simulate()
+    sim = Simulator(dyn_fun, control_fun, t_span, xDyn0, xCtrl0, t_eval=t_eval)
+    tArr, xDynArr, xCtrlArr, uArr = sim.simulate()
 
     # Plot Results
     stateGroupNames = ["Body Velocities (m/s)", "Body Rates (rad/s)", "Euler Angles (rad)", "Positions (m)"]
     stateGroups = [['u', 'v', 'w'], ['p', 'q', 'r'], ['phi', 'theta', 'psi'], ['x', 'y', 'z']]
     controlGroupNames = ["Accel Commands (m/s^2, rad/s^2)"]
     controlGroups = [['thrust', 'pDot', 'qDot', 'rDot']]
-    plotTimeTrajectories(tArr, xArr, uArr, stateGroupNames, stateGroups, controlGroupNames, controlGroups)
+    plotTimeTrajectories(tArr, xDynArr, uArr, stateGroupNames, stateGroups, controlGroupNames, controlGroups)
     plt.show()
 
 

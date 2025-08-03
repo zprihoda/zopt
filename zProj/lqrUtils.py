@@ -132,8 +132,5 @@ def infiniteHorizonIntegralLqr(
 ## Basic LQR Controllers
 def proportionalFeedbackController(x, x0, u0, K):
     control = -K @ (x - x0) + u0
-    return control
-
-
-def PiFeedbackController(x, x0, u0, Ki, Kp, Ci):
-    pass
+    dxCtrl = np.array([])  # no controller states
+    return control, dxCtrl

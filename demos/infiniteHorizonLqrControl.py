@@ -27,14 +27,15 @@ def main():
 
     # Design LQR controller
     K = infiniteHorizonLqr(A, B, Q, R)
+    xCtrl0 = np.array([])
 
     # Simple Simulation
     dyn_fun = lambda t, x, u: ac.inertialDynamics(x, u)
-    control_fun = lambda t, x: proportionalFeedbackController(x[:8], xTrim, uTrim, K)
+    control_fun = lambda t, x, xCtrl: proportionalFeedbackController(x[:8], xTrim, uTrim, K)
     t_span = (0, T)
     t_eval = np.arange(0, T, dt)
-    sim = Simulator(dyn_fun, control_fun, t_span, x0, t_eval=t_eval)
-    tArr, xArr, uArr = sim.simulate()
+    sim = Simulator(dyn_fun, control_fun, t_span, x0, xCtrl0, t_eval=t_eval)
+    tArr, xArr, _, uArr = sim.simulate()
 
     # Plot Results
     stateGroupNames = ["Body Velocities (m/s)", "Body Rates (rad/s)", "Euler Angles (rad)", "Positions (m)"]
