@@ -27,12 +27,10 @@ def getOpenLoopTrajectory(
 
     # Setup and solve CVX problem
     xTraj = cvx.Variable((nt, nx))
-    uTraj = cvx.Variable((nt, nu))
-    objective = cvx.Minimize(cvx.sum(cvx.norm(uTraj, axis=1)))
+    du = cvx.Variable((nt, nu))
+    objective = cvx.Minimize(cvx.sum(cvx.norm(du, axis=1)))
     constraints = [xTraj[0] == x0, xTraj[-1] == xf]
-    constraints += [
-        xTraj[i + 1] == xTraj[i] + dt * (A @ (xTraj[i] - xTrim) + B @ (uTraj[i] - uTrim)) for i in range(nt - 1)
-    ]
+    constraints += [xTraj[i + 1] == xTraj[i] + dt * (A @ xTraj[i] + B @ du[i]) for i in range(nt - 1)]
     prob = cvx.Problem(objective, constraints)
     prob.solve()
 
@@ -41,7 +39,7 @@ def getOpenLoopTrajectory(
 
     # Use interp to convert to continuous functions
     xTraj = spi.make_interp_spline(tTraj, xTraj.value, k=1)
-    uTraj = spi.make_interp_spline(tTraj, uTraj.value, k=1)
+    uTraj = spi.make_interp_spline(tTraj, du.value + uTrim, k=1)
 
     return xTraj, uTraj
 
@@ -94,14 +92,19 @@ def main():
     uTrajArr = uTraj(tArr)
     fig = plotTimeTrajectory(tArr, xDynArr[:, 0:3], names=['u', 'v', 'w'], title="Body Velocities")
     plotTimeTrajectory(tArr, xTrajArr[:, 0:3], fig=fig)
+    plt.legend(["State", "Trajectory"])
     fig = plotTimeTrajectory(tArr, xDynArr[:, 3:6], names=['p', 'q', 'r'], title="Body Rates")
     plotTimeTrajectory(tArr, xTrajArr[:, 3:6], fig=fig)
+    plt.legend(["State", "Trajectory"])
     fig = plotTimeTrajectory(tArr, xDynArr[:, 6:9], names=['phi', 'theta', 'psi'], title="Euler Angles")
     plotTimeTrajectory(tArr, xTrajArr[:, 6:9], fig=fig)
+    plt.legend(["State", "Trajectory"])
     fig = plotTimeTrajectory(tArr, xDynArr[:, 9:12], names=['x', 'y', 'z'], title="Positions")
     plotTimeTrajectory(tArr, xTrajArr[:, 9:12], fig=fig)
+    plt.legend(["State", "Trajectory"])
     fig = plotTimeTrajectory(tArr, uArr, names=["thrust", "pDot", "qDot", "rDot"], title="Pseudo Controls")
     plotTimeTrajectory(tArr, uTrajArr, fig=fig)
+    plt.legend(["State", "Trajectory"])
     plotTimeTrajectory(tArr, xCtrlArr, names=["x", "y", "z"], title="Controller Integral State")
 
     plt.show()
