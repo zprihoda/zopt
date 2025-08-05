@@ -1,3 +1,4 @@
+import jax.numpy as jnp
 import numpy as np
 import numpy.linalg as npl
 import scipy.linalg as spl
@@ -49,6 +50,14 @@ def _lqrHjb(
     return dV
 
 
+def finiteHorizonValueInterp(t, V, tq):
+    """Jax compliant linear vector interpolation"""
+    idx = jnp.searchsorted(t, tq) - 1
+    frac = (tq - t[idx]) / (t[idx + 1] - t[idx])
+    Vq = (1 - frac) * V[:, idx] + frac * V[:, idx + 1]
+    return Vq
+
+
 def finiteHorizonLqr(
     A: Callable[[float], np.ndarray],
     B: Callable[[float], np.ndarray],
@@ -79,11 +88,20 @@ def finiteHorizonLqr(
     -------
         K : Optimal LQR gains as a function of time: `K(t)`
     """
+    # Solve the LQR HJB equation
     V0 = Qf.reshape(-1)
     n = A(0).shape[0]
     dV = lambda t, V: _lqrHjb(t, V, A, B, Q, R_inv, n)
-    out = spi.solve_ivp(dV, (T, 0), V0, dense_output=True)
-    K = lambda t: R_inv(t) @ B(t).T @ out.sol(t).reshape((n, n))
+    out = spi.solve_ivp(dV, (T, 0), V0)
+
+    # Setup gain interpolation function
+    t = out.t[::-1]     # Flip to forward time
+    V = out.y[:, ::-1]
+    t = jnp.concatenate([jnp.array([t[0]-1]), t, jnp.array([jnp.inf])])     # Add extrapolation values
+    V = jnp.concatenate([V[:, [0]], V, V[:, [-1]]], axis=1)
+
+    Vfun = lambda tq: finiteHorizonValueInterp(t, V, tq)
+    K = lambda t: R_inv(t) @ B(t).T @ Vfun(t).reshape((n, n))
     return K
 
 

@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from zProj.quadcopter import Quadcopter
-from zProj.simulator import Simulator
+from zProj.simulator import Simulator, SimBlock
 from zProj.plottingTools import plotTimeTrajectory
 from zProj.lqrUtils import finiteHorizonLqr, proportionalFeedbackController
 
@@ -29,15 +29,19 @@ def main():
     Qt = lambda t: Q
     Rt = lambda t: R
     K = finiteHorizonLqr(At, Bt, Qt, Rt, Qf, T)
-    xCtrl0 = np.array([])
 
     # Simple Simulation
-    dyn_fun = lambda t, x, u: ac.inertialDynamics(x, u)
-    control_fun = lambda t, x, xCtrl: proportionalFeedbackController(x[:8], xTrim, uTrim, K(t))
+    dynamics = SimBlock(lambda t, x, u: (None, ac.inertialDynamics(x, u)), x0, name="Dynamics")
+    controller = SimBlock(
+        lambda t, xCtrl, x: proportionalFeedbackController(x[:8], xTrim, uTrim, K(t)),
+        np.array([]),
+        name="Controller",
+    )
+
     t_span = (0, T)
     t_eval = np.arange(0, T, dt)
-    sim = Simulator(dyn_fun, control_fun, t_span, x0, xCtrl0, t_eval=t_eval)
-    tArr, xArr, _, uArr = sim.simulate()
+    sim = Simulator([controller, dynamics], t_span, t_eval=t_eval)
+    tArr, _, xArr, uArr, _ = sim.simulate()
 
     # Plot Results
     plotTimeTrajectory(tArr, xArr[:, 0:3], names=['u', 'v', 'w'], title="Body Velocities")
