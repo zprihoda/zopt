@@ -5,7 +5,7 @@ import jax.numpy as jnp
 @jax.jit
 def interp1d(x: jnp.ndarray, y: jnp.ndarray, xq: float):
     """
-    Jax compliant linear vector interpolation
+    Jax compliant clipped linear vector interpolation
 
     Arguments
     ---------
@@ -19,8 +19,9 @@ def interp1d(x: jnp.ndarray, y: jnp.ndarray, xq: float):
 
     Notes
     -----
-    - xq must be within the bounds [x[0], x[-1]]
+    - xq will be clipped to the bounds [x[0], x[-1]]
     """
+    xq = jnp.clip(xq, x[0], x[-1])
     idx = jnp.searchsorted(x, xq) - 1
     frac = (xq - x[idx]) / (x[idx + 1] - x[idx])
     yq = (1 - frac) * y[:, idx] + frac * y[:, idx + 1]

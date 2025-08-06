@@ -42,13 +42,8 @@ def getOpenLoopTrajectory(
         raise RuntimeError("CVX failed to converge!")
 
     # Use interp to convert to continuous functions
-    x = xTraj.value.T
-    u = (du.value + uTrim).T
-    t = jnp.concatenate([jnp.array([-1]), tTraj, jnp.array([np.inf])])
-    x = jnp.concatenate([x[:, [0]], x, x[:, [-1]]], axis=1)
-    u = jnp.concatenate([u[:, [0]], u, u[:, [-1]]], axis=1)
-    xFun = lambda tq: interp1d(t, x, tq)
-    uFun = lambda tq: interp1d(t, u, tq)
+    xFun = lambda tq: interp1d(tTraj, xTraj.value.T, tq)
+    uFun = lambda tq: interp1d(tTraj, (du.value + uTrim).T, tq)
 
     return xFun, uFun
 
