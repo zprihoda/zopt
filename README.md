@@ -11,13 +11,17 @@ A random collection of small projects
         - Add integral controller from integralLqrControl demo.
         - Create/move tests
 - Tasks:
+    - Create jaxUtils module
+        - Add interp, and any other useful jax functions.
     - Add discrete LQR (for all of the above?)
     - Add iterative LQR demo
     - Write quadcopter animation
 - Simulator:
     - Add support for discrete controllers?
-    - Jit the step function? Will that work in a class?
-    - Use diffrax for ode integration?
+    - Add support for multi-rate systems
+    - Generalize simBlocks + add signal map
+    - Add support for output memory (can implement as a discrete memory block once above points are addressed)
+    - Consider diffrax for ode integration?
 - PlottingTools
     - Add support for structured arrays, can auto-extract names
     - Rename plotTrajectory to plotTrajectorySubplots

@@ -59,10 +59,21 @@ class Simulator():
 
         Arguments
         ---------
-            blocks: List of simBlocks to use. Currently only supports 2 blocks
+            blocks: List of simBlocks to use.
             t_span: Start and end time to simulate
             method: Method of solve_ivp to use
             t_eval: Times at which to store the computed solution
+
+        Note: Currently the sim only supports 2 blocks and will connect them as follows:
+        ```
+        (y0, xDot0) = blocks[0].update(t, x0, x1)
+        (y1, xDot1) = blocks[1].update(t, x1, y0)
+        ```
+        Which supports a [controller, dynamics] sim block structure with state feedback:
+        ```
+        (u, xCtrlDot) = controller.update(t, xCtrl, xDyn)
+        (y, xDynDot) = dynamics.update(t, xDyn, u)
+        ```
         """
         self.blocks = blocks
         self.t_span = t_span
