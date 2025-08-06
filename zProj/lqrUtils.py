@@ -95,9 +95,9 @@ def finiteHorizonLqr(
     out = spi.solve_ivp(dV, (T, 0), V0)
 
     # Setup gain interpolation function
-    t = out.t[::-1]     # Flip to forward time
+    t = out.t[::-1]  # Flip to forward time
     V = out.y[:, ::-1]
-    t = jnp.concatenate([jnp.array([t[0]-1]), t, jnp.array([jnp.inf])])     # Add extrapolation values
+    t = jnp.concatenate([jnp.array([t[0] - 1]), t, jnp.array([jnp.inf])])  # Add extrapolation values
     V = jnp.concatenate([V[:, [0]], V, V[:, [-1]]], axis=1)
 
     Vfun = lambda tq: finiteHorizonValueInterp(t, V, tq)

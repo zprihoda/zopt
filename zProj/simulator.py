@@ -22,8 +22,8 @@ class SimBlock():
         Arguments
         ---------
         fun : Update function of the form:
-            - Continuous: `y,xDot = fun(x,u)`
-            - Discrete: `y,x[k+1] = fun(x[k],u)`
+            - Continuous: `y,xDot = fun(t,x,u)`
+            - Discrete: `y,x = fun(k,x,u)`
         x0 : Initial block state
         dt : Sample time of block, 0=continuous
         jittable : Flag specifying whether fun is compatible with jax jit compilation
@@ -118,9 +118,10 @@ class Simulator():
         Returns
         -------
             tArr: Array of times
-            xDynArr: Array of dynamic states
-            xCtrlArr: Array of controller states
-            uArr: Array of controls
+            x0Arr: Array of block0 states
+            x1Arr: Array of block1 states
+            y0Arr: Array of block0 outputs
+            y1Arr: Array of block1 outputs
         """
         x0 = np.concatenate([block.x0 for block in self.blocks])
 
