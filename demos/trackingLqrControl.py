@@ -1,5 +1,6 @@
 import cvxpy as cvx
 import jax
+import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.interpolate as spi
@@ -41,10 +42,22 @@ def getOpenLoopTrajectory(
         raise RuntimeError("CVX failed to converge!")
 
     # Use interp to convert to continuous functions
-    xTraj = spi.make_interp_spline(tTraj, xTraj.value, k=1)
-    uTraj = spi.make_interp_spline(tTraj, du.value + uTrim, k=1)
+    x = xTraj.value.T
+    u = (du.value + uTrim).T
+    t = jnp.concatenate([jnp.array([-1]), tTraj, jnp.array([np.inf])])
+    x = jnp.concatenate([x[:,[0]], x, x[:,[-1]]], axis=1)
+    u = jnp.concatenate([u[:,[0]], u, u[:,[-1]]], axis=1)
+    xFun = lambda tq: jaxInterp(t, x, tq)
+    uFun = lambda tq: jaxInterp(t, u, tq)
 
-    return xTraj, uTraj
+    return xFun, uFun
+
+def jaxInterp(x, y, xq):
+    """Jax compliant linear vector interpolation"""
+    idx = jnp.searchsorted(x, xq) - 1
+    frac = (xq - x[idx]) / (x[idx + 1] - x[idx])
+    yq = (1 - frac) * y[:, idx] + frac * y[:, idx + 1]
+    return yq
 
 
 def controller(t, xDyn, xCtrl, xTraj, uTraj, Ci, Ki, Kp):
@@ -87,8 +100,7 @@ def main():
     controlBlock = SimBlock(
         lambda t, xCtrl, xDyn: controller(t, xDyn, xCtrl, xTraj, uTraj, Ci, Ki, Kp),
         xCtrl0,
-        name="Controller",
-        jittable=False
+        name="Controller"
     )
     t_span = (0, T)
     t_eval = np.arange(0, T, dt)
@@ -96,8 +108,8 @@ def main():
     tArr, xCtrlArr, xDynArr, uArr, _ = sim.simulate()
 
     # Plot Results
-    xTrajArr = xTraj(tArr)
-    uTrajArr = uTraj(tArr)
+    xTrajArr = xTraj(tArr).T
+    uTrajArr = uTraj(tArr).T
     fig = plotTimeTrajectory(tArr, xDynArr[:, 0:3], names=['u', 'v', 'w'], title="Body Velocities")
     plotTimeTrajectory(tArr, xTrajArr[:, 0:3], fig=fig)
     plt.legend(["Simulated", "Design Trajectory"])
