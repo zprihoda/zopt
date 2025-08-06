@@ -4,6 +4,7 @@ import numpy.linalg as npl
 import scipy.linalg as spl
 import scipy.integrate as spi
 
+from zProj.jaxUtils import interp1d
 from typing import Callable
 
 
@@ -50,14 +51,6 @@ def _lqrHjb(
     return dV
 
 
-def finiteHorizonValueInterp(t, V, tq):
-    """Jax compliant linear vector interpolation"""
-    idx = jnp.searchsorted(t, tq) - 1
-    frac = (tq - t[idx]) / (t[idx + 1] - t[idx])
-    Vq = (1 - frac) * V[:, idx] + frac * V[:, idx + 1]
-    return Vq
-
-
 def finiteHorizonLqr(
     A: Callable[[float], np.ndarray],
     B: Callable[[float], np.ndarray],
@@ -100,7 +93,7 @@ def finiteHorizonLqr(
     t = jnp.concatenate([jnp.array([t[0] - 1]), t, jnp.array([jnp.inf])])  # Add extrapolation values
     V = jnp.concatenate([V[:, [0]], V, V[:, [-1]]], axis=1)
 
-    Vfun = lambda tq: finiteHorizonValueInterp(t, V, tq)
+    Vfun = lambda tq: interp1d(t, V, tq)
     K = lambda t: R_inv(t) @ B(t).T @ Vfun(t).reshape((n, n))
     return K
 

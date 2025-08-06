@@ -4,6 +4,7 @@ import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import numpy as np
 
+from zProj.jaxUtils import interp1d
 from zProj.quadcopter import Quadcopter
 from zProj.simulator import Simulator, SimBlock
 from zProj.plottingTools import plotTimeTrajectory
@@ -46,18 +47,10 @@ def getOpenLoopTrajectory(
     t = jnp.concatenate([jnp.array([-1]), tTraj, jnp.array([np.inf])])
     x = jnp.concatenate([x[:, [0]], x, x[:, [-1]]], axis=1)
     u = jnp.concatenate([u[:, [0]], u, u[:, [-1]]], axis=1)
-    xFun = lambda tq: jaxInterp(t, x, tq)
-    uFun = lambda tq: jaxInterp(t, u, tq)
+    xFun = lambda tq: interp1d(t, x, tq)
+    uFun = lambda tq: interp1d(t, u, tq)
 
     return xFun, uFun
-
-
-def jaxInterp(x, y, xq):
-    """Jax compliant linear vector interpolation"""
-    idx = jnp.searchsorted(x, xq) - 1
-    frac = (xq - x[idx]) / (x[idx + 1] - x[idx])
-    yq = (1 - frac) * y[:, idx] + frac * y[:, idx + 1]
-    return yq
 
 
 def controller(t, xDyn, xCtrl, xTraj, uTraj, Ci, Ki, Kp):
