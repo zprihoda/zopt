@@ -4,9 +4,7 @@ A random collection of small projects
 ## TODO:
 - discrete-lqr
     - Update all demos to work with partial sim refactor
-    - Update sim tests for partial sim refactor
     - Add discrete functionality to sim
-    - Update trackingLqrControl demo to be jittable
 - Short Tasks:
     - Create controllers module
         - Move proportionalFeedbackController from lqrUtils to controllers

@@ -40,16 +40,16 @@ def main():
     control_fun = lambda k, x, xCtrl: proportionalFeedbackController(x[:8], xTrim, uTrim, K[k])
     t_span = (0, T)
     t_eval = np.arange(0, T, dt)
-    sim = Simulator(dyn_fun, control_fun, t_span, x0, xCtrl0, t_eval=t_eval)
-    tArr, xArr, _, uArr = sim.simulate()
+    # sim = Simulator(dyn_fun, control_fun, t_span, x0, xCtrl0, t_eval=t_eval)
+    # tArr, xArr, _, uArr = sim.simulate()
 
-    # Plot Results
-    plotTimeTrajectory(tArr, xArr[:, 0:3], names=['u', 'v', 'w'], title="Body Velocities")
-    plotTimeTrajectory(tArr, xArr[:, 3:6], names=['p', 'q', 'r'], title="Body Rates")
-    plotTimeTrajectory(tArr, xArr[:, 6:9], names=['phi', 'theta', 'psi'], title="Euler Angles")
-    plotTimeTrajectory(tArr, xArr[:, 9:12], names=['x', 'y', 'z'], title="Positions")
-    plotTimeTrajectory(tArr, uArr, names=["thrust", "pDot", "qDot", "rDot"], title="Pseudo Controls")
-    plt.show()
+    # # Plot Results
+    # plotTimeTrajectory(tArr, xArr[:, 0:3], names=['u', 'v', 'w'], title="Body Velocities")
+    # plotTimeTrajectory(tArr, xArr[:, 3:6], names=['p', 'q', 'r'], title="Body Rates")
+    # plotTimeTrajectory(tArr, xArr[:, 6:9], names=['phi', 'theta', 'psi'], title="Euler Angles")
+    # plotTimeTrajectory(tArr, xArr[:, 9:12], names=['x', 'y', 'z'], title="Positions")
+    # plotTimeTrajectory(tArr, uArr, names=["thrust", "pDot", "qDot", "rDot"], title="Pseudo Controls")
+    # plt.show()
 
 
 if __name__ == "__main__":

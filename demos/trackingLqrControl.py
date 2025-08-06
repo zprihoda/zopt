@@ -45,12 +45,13 @@ def getOpenLoopTrajectory(
     x = xTraj.value.T
     u = (du.value + uTrim).T
     t = jnp.concatenate([jnp.array([-1]), tTraj, jnp.array([np.inf])])
-    x = jnp.concatenate([x[:,[0]], x, x[:,[-1]]], axis=1)
-    u = jnp.concatenate([u[:,[0]], u, u[:,[-1]]], axis=1)
+    x = jnp.concatenate([x[:, [0]], x, x[:, [-1]]], axis=1)
+    u = jnp.concatenate([u[:, [0]], u, u[:, [-1]]], axis=1)
     xFun = lambda tq: jaxInterp(t, x, tq)
     uFun = lambda tq: jaxInterp(t, u, tq)
 
     return xFun, uFun
+
 
 def jaxInterp(x, y, xq):
     """Jax compliant linear vector interpolation"""
@@ -98,9 +99,7 @@ def main():
     # Run Simulation
     dynamics = SimBlock(lambda t, x, u: (None, ac.inertialDynamics(x, u)), xDyn0, name="Dynamics")
     controlBlock = SimBlock(
-        lambda t, xCtrl, xDyn: controller(t, xDyn, xCtrl, xTraj, uTraj, Ci, Ki, Kp),
-        xCtrl0,
-        name="Controller"
+        lambda t, xCtrl, xDyn: controller(t, xDyn, xCtrl, xTraj, uTraj, Ci, Ki, Kp), xCtrl0, name="Controller"
     )
     t_span = (0, T)
     t_eval = np.arange(0, T, dt)
