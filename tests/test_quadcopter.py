@@ -100,9 +100,17 @@ def test_trim():
     assert ac.rigidBodyDynamics(x0, u0) == pytest.approx(np.zeros(8), abs=1e-3)
 
 
-def test_linearize():
+def test_linearize_continuous():
     ac = Quadcopter()
-    x0 = np.zeros(9)
+    x0 = np.zeros(8)
     u0 = np.array([9.807, 0, 0, 0])
     A, B = ac.linearize(x0, u0)
+    assert not (np.any(np.isnan(A)) or np.any(np.isnan(B)))
+
+
+def test_linearize_discrete():
+    ac = Quadcopter()
+    x0 = np.zeros(8)
+    u0 = np.array([9.807, 0, 0, 0])
+    A, B = ac.linearize(x0, u0, dt=1)
     assert not (np.any(np.isnan(A)) or np.any(np.isnan(B)))

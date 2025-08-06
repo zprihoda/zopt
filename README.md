@@ -2,27 +2,30 @@
 A random collection of small projects
 
 ## TODO:
+- discrete-lqr
+    - Update all demos to work with partial sim refactor
+    - Add discrete functionality to sim
 - Short Tasks:
     - Create controllers module
         - Move proportionalFeedbackController from lqrUtils to controllers
         - Add integral controller from integralLqrControl demo.
         - Create/move tests
-
 - Tasks:
-    - Add iterative LQR demo
+    - Create jaxUtils module
+        - Add interp, and any other useful jax functions.
     - Add discrete LQR (for all of the above?)
+    - Add iterative LQR demo
     - Write quadcopter animation
-
 - Simulator:
     - Add support for discrete controllers?
-    - Jit the step function? Will that work in a class?
-    - Use diffrax for ode integration?
+    - Add support for multi-rate systems
+    - Generalize simBlocks + add signal map
+    - Add support for output memory (can implement as a discrete memory block once above points are addressed)
+    - Consider diffrax for ode integration?
 - PlottingTools
     - Add support for structured arrays, can auto-extract names
     - Rename plotTrajectory to plotTrajectorySubplots
     - Add plotTrajectorySingleAx (plots multiple signals on one axis)
-    - Add fig/axs optional arguments (plot on the specified figure / axes)
-    - Consider general function with
     - Add plot positionTrajectory (or generic phase plot?)
 - Quadcopter:
     - Consider structured arrays (or something similar) to clean up state interface

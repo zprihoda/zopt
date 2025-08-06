@@ -176,7 +176,7 @@ class Quadcopter():
         xTrim, uTrim = _getXu(out.x)
         return xTrim, uTrim
 
-    def linearize(self, x0: jnp.ndarray, u0: jnp.ndarray) -> tuple[jnp.ndarray, jnp.ndarray]:
+    def linearize(self, x0: jnp.ndarray, u0: jnp.ndarray, dt: float = 0) -> tuple[jnp.ndarray, jnp.ndarray]:
         """
         Linearize the quadcopter dynamics about a given state and control input
 
@@ -184,10 +184,18 @@ class Quadcopter():
         ---------
             x0 : Rigid body state about which to linearize
             u0 : Control about which to linearize
+            dt : Sample length for discrete linearization. Set dt=0 for continuous time linearization
+                 Default value: 0 (continuous time)
         Returns
         -------
             A : Partial derivative of the dynamics function wrt the state input
             B : Partial derivative of the dynamics function wrt the control input
         """
         A, B = self._linFunc(x0, u0)
+
+        if dt != 0:
+            # Forward Euler Discretization
+            A = jnp.eye(A.shape[0]) + dt * A
+            B = dt * B
+
         return A, B
