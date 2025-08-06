@@ -4,7 +4,7 @@ import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import numpy as np
 
-from zProj.jaxUtils import interp1d
+from zProj.jaxUtils import interpMapped
 from zProj.quadcopter import Quadcopter
 from zProj.simulator import Simulator, SimBlock
 from zProj.plottingTools import plotTimeTrajectory
@@ -42,8 +42,8 @@ def getOpenLoopTrajectory(
         raise RuntimeError("CVX failed to converge!")
 
     # Use interp to convert to continuous functions
-    xFun = lambda tq: interp1d(tTraj, xTraj.value.T, tq)
-    uFun = lambda tq: interp1d(tTraj, (du.value + uTrim).T, tq)
+    xFun = lambda tq: interpMapped(tq, tTraj, xTraj.value.T)
+    uFun = lambda tq: interpMapped(tq, tTraj, (du.value + uTrim).T)
 
     return xFun, uFun
 

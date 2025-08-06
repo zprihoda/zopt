@@ -4,7 +4,7 @@ import numpy.linalg as npl
 import scipy.linalg as spl
 import scipy.integrate as spi
 
-from zProj.jaxUtils import interp1d
+from zProj.jaxUtils import interpMapped
 from typing import Callable
 
 
@@ -91,7 +91,7 @@ def finiteHorizonLqr(
     t = out.t[::-1]  # Flip to forward time
     V = out.y[:, ::-1]
 
-    Vfun = lambda tq: interp1d(t, V, tq)
+    Vfun = lambda tq: interpMapped(tq, t, V)
     K = lambda t: R_inv(t) @ B(t).T @ Vfun(t).reshape((n, n))
     return K
 

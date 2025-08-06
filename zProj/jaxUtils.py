@@ -1,28 +1,23 @@
 import jax
 import jax.numpy as jnp
 
+from functools import partial
 
-@jax.jit
-def interp1d(x: jnp.ndarray, y: jnp.ndarray, xq: float):
+@partial(jax.jit, static_argnames=["left", "right", "period"])
+@partial(jax.vmap, in_axes=(None, None, 0))
+def interpMapped(x: jnp.ndarray, xp: jnp.ndarray, fp: float, left=None, right=None, period=None):
     """
-    Jax compliant clipped linear vector interpolation
+    n-dimensional linear interpolation
 
     Arguments
     ---------
-        x : (N,) array of sorted sample points
-        y : (n,N) array of vector values
-        xq : x-value to evaluate interpolant at
+        x : N-dimensional array of x coordinates at which to evaluate the interpolation.
+        xp : one-dimensional sorted array of points to be interpolated.
+        fp : array of shape (n,xp.shape) containing the function values associated with xp.
+        left, right, period : see jax interp documentation, defaults to clipped bounds
 
     Returns
     -------
         yq : (n,) array of interpolated vector values at xq
-
-    Notes
-    -----
-    - xq will be clipped to the bounds [x[0], x[-1]]
     """
-    xq = jnp.clip(xq, x[0], x[-1])
-    idx = jnp.searchsorted(x, xq) - 1
-    frac = (xq - x[idx]) / (x[idx + 1] - x[idx])
-    yq = (1 - frac) * y[:, idx] + frac * y[:, idx + 1]
-    return yq
+    return jnp.interp(x, xp, fp, left=left, right=right, period=period)
