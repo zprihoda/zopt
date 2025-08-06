@@ -33,9 +33,7 @@ def main():
     # Simple Simulation
     dynamics = SimBlock(lambda t, x, u: (None, ac.inertialDynamics(x, u)), x0, name="Dynamics")
     controller = SimBlock(
-        lambda t, xCtrl, x: proportionalFeedbackController(x[:8], xTrim, uTrim, K(t)),
-        np.array([]),
-        name="Controller",
+        lambda t, xCtrl, x: proportionalFeedbackController(x[:8], xTrim, uTrim, K(t)), np.array([]), name="Controller"
     )
 
     t_span = (0, T)

@@ -5,7 +5,7 @@ import numpy as np
 import scipy.interpolate as spi
 
 from zProj.quadcopter import Quadcopter
-from zProj.simulator import Simulator
+from zProj.simulator import Simulator, SimBlock
 from zProj.plottingTools import plotTimeTrajectory
 from zProj.lqrUtils import infiniteHorizonIntegralLqr
 
@@ -81,14 +81,19 @@ def main():
     # NOTE: Could linearize and solve LQR about the open loop trajectory instead.
     #   We'll cover this in the iLQR demo later
     Ki, Kp = infiniteHorizonIntegralLqr(A, B, Q, R, Qi, Ci)
-    control_fun = lambda t, xDyn, xCtrl: controller(t, xDyn, xCtrl, xTraj, uTraj, Ci, Ki, Kp)
 
     # Run Simulation
-    dyn_fun = lambda t, x, u: ac.inertialDynamics(x, u)
+    dynamics = SimBlock(lambda t, x, u: (None, ac.inertialDynamics(x, u)), xDyn0, name="Dynamics")
+    controlBlock = SimBlock(
+        lambda t, xCtrl, xDyn: controller(t, xDyn, xCtrl, xTraj, uTraj, Ci, Ki, Kp),
+        xCtrl0,
+        name="Controller",
+        jittable=False
+    )
     t_span = (0, T)
     t_eval = np.arange(0, T, dt)
-    sim = Simulator(dyn_fun, control_fun, t_span, xDyn0, xCtrl0, t_eval=t_eval)
-    tArr, xDynArr, xCtrlArr, uArr = sim.simulate()
+    sim = Simulator([controlBlock, dynamics], t_span, t_eval=t_eval)
+    tArr, xCtrlArr, xDynArr, uArr, _ = sim.simulate()
 
     # Plot Results
     xTrajArr = xTraj(tArr)

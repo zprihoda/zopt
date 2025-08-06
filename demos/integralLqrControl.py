@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from zProj.quadcopter import Quadcopter
-from zProj.simulator import Simulator
+from zProj.simulator import Simulator, SimBlock
 from zProj.plottingTools import plotTimeTrajectory
 from zProj.lqrUtils import infiniteHorizonIntegralLqr
 
@@ -38,12 +38,14 @@ def main():
     Ki, Kp = infiniteHorizonIntegralLqr(A, B, Q, R, Qi, Ci)
 
     # Simple Simulation
-    dyn_fun = lambda t, x, u: ac.inertialDynamics(x, u)
-    control_fun = lambda t, xDyn, xCtrl: controller(xDyn, xCtrl, xTrim, uTrim, Ci, Ki, Kp, r)
+    dynamics = SimBlock(lambda t, x, u: (None, ac.inertialDynamics(x, u)), xDyn0, name="Dynamics")
+    controlBlock = SimBlock(
+        lambda t, xCtrl, xDyn: controller(xDyn, xCtrl, xTrim, uTrim, Ci, Ki, Kp, r), xCtrl0, name="Controller"
+    )
     t_span = (0, T)
     t_eval = np.arange(0, T, dt)
-    sim = Simulator(dyn_fun, control_fun, t_span, xDyn0, xCtrl0, t_eval=t_eval)
-    tArr, xDynArr, xCtrlArr, uArr = sim.simulate()
+    sim = Simulator([controlBlock, dynamics], t_span, t_eval=t_eval)
+    tArr, xCtrlArr, xDynArr, uArr, _ = sim.simulate()
 
     # Plot Results
     plotTimeTrajectory(tArr, xDynArr[:, 0:3], names=['u', 'v', 'w'], title="Body Velocities")
