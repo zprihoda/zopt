@@ -14,7 +14,7 @@ def controlFun(t, xCtrl, xDyn):
 
 
 def test_simBlockInit():
-    dynBlock = SimBlock(dynFun, np.array([0]), dt=0, jittable=False, name="dynamics")
+    SimBlock(dynFun, np.array([0]), dt=0, jittable=False, name="dynamics")
 
 
 def test_simluatorInit():
