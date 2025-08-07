@@ -143,14 +143,13 @@ def discreteFiniteHorizonLqr(
     B: Callable[[int], np.ndarray],
     Q: Callable[[int], np.ndarray],
     R: Callable[[int], np.ndarray],
-    Q_N: np.ndarray,
     N: int
-) -> Callable[[int], np.ndarray]:
+) -> np.ndarray:
     """
     Compute the finite horizon LQR gains by numerically integrating the LQR HJB equation
 
     ```
-    J = xf^T Q_N xf + int_t(x^T Q x + u^T R u)
+    J = sum_k(x^T Q x + u^T R u)
     xNew = A x + B u
     uLqr = -K x
     ```
@@ -161,14 +160,13 @@ def discreteFiniteHorizonLqr(
         B : State-space input matrix as a function of time step: `B[k]`
         Q : State cost matrix as a function of time step: `Q[k]`
         R : Control cost matrix as a function of time step: `R[k]`
-        Qf : Terminal state cost matrix
         N : Time step horizon
 
     Returns
     -------
-        L : Optimal LQR gains as a function of time step: `L(k)`
+        L : Optimal LQR gains indexed by time step: `L[k]`
     """
-    V = Q_N
+    V = Q[-1]
     nx, nu = B[0].shape
     L = np.zeros((N, nu, nx))
     for i in range(N):

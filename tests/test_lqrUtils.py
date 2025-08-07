@@ -63,8 +63,7 @@ def test_discreteFiniteHorizonLqr():
     B = np.repeat(np.eye(2)[None, :, :], N, axis=0)
     Q = np.repeat(np.eye(2)[None, :, :], N, axis=0)
     R = np.repeat(np.eye(2)[None, :, :], N, axis=0)
-    Q_N = np.eye(2)
-    K = lqr.discreteFiniteHorizonLqr(A, B, Q, R, Q_N, N)
+    K = lqr.discreteFiniteHorizonLqr(A, B, Q, R, N)
     assert K[1] == pytest.approx(0.5 * np.eye(2))
     assert K[0] == pytest.approx(0.6 * np.eye(2))
 
