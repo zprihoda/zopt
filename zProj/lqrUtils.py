@@ -1,4 +1,3 @@
-import jax.numpy as jnp
 import numpy as np
 import numpy.linalg as npl
 import scipy.linalg as spl
