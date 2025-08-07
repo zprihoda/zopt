@@ -59,12 +59,14 @@ class Simulator():
 
         Arguments
         ---------
-            blocks: List of simBlocks to use.
-            t_span: Start and end time to simulate
-            method: Method of solve_ivp to use
-            t_eval: Times at which to store the computed solution
+            blocks : List of simBlocks to use.
+            t_span : Start and end time to simulate
+            method : Method of solve_ivp to use (continuous only)
+            t_eval : Times at which to store the computed solution (continuous only)
 
-        Note: Currently the sim only supports 2 blocks and will connect them as follows:
+        Notes
+        -----
+        Currently the sim only supports 2 blocks and will connect them as follows:
         ```
         (y0, xDot0) = blocks[0].update(t, x0, x1)
         (y1, xDot1) = blocks[1].update(t, x1, y0)
@@ -120,7 +122,20 @@ class Simulator():
         return dx
 
     def _internalStepFunDiscrete(self, k, x):
-        raise NotImplementedError("Discrete time step function not implemented")
+        x0, x1 = self._getStates(x)
+        y0, x0 = self.blocks[0].update(k, x0, x1)
+        y1, x1 = self.blocks[1].update(k, x1, y0)
+        x = jnp.concatenate([x0, x1])
+        return x
+
+    def _solve_ivp_discrete(self, step_fun, N, x0):
+        n = len(x0)
+        xArr = np.zeros((N + 1, n))
+        xArr[0] = x0
+        for k in range(N):
+            xArr[k + 1] = step_fun(k, xArr[k])
+        tArr = np.arange(0, N + 1) * self.dt
+        return tArr, xArr
 
     def simulate(self):
         """
@@ -128,23 +143,27 @@ class Simulator():
 
         Returns
         -------
-            tArr: Array of times
-            x0Arr: Array of block0 states
-            x1Arr: Array of block1 states
-            y0Arr: Array of block0 outputs
-            y1Arr: Array of block1 outputs
+            tArr : (N,) Array of times
+            x0Arr : (N,n0) Array of block0 states
+            x1Arr : (N,n1) Array of block1 states
+            y0Arr : (N,m0) Array of block0 outputs. For discrete, size is (N-1,m0)
+            y1Arr : (N,m1) Array of block1 outputs. For discrete, size is (N-1,m1)
         """
         x0 = np.concatenate([block.x0 for block in self.blocks])
 
         if self.dt == 0:
             out = spi.solve_ivp(self._step_fun, self.t_span, x0, method=self.method, t_eval=self.t_eval)
+            tArr = out.t
+            xArr = out.y.T
+            kArr = tArr  # For resampling y
         else:
-            raise NotImplementedError("Discrete time sim not implemented")
+            N = int(np.ceil(self.t_span[1] / self.dt))
+            tArr, xArr = self._solve_ivp_discrete(self._step_fun, N, x0)
+            kArr = np.arange(0, len(tArr) - 1)  # For resampling y
 
-        tArr = out.t
-        xArr = out.y.T
         x0Arr = xArr[:, :self.blocks[0].nx]
         x1Arr = xArr[:, self.blocks[0].nx:]
-        y0Arr = np.array([self.blocks[0].update(t, x0, x1)[0] for (t, x0, x1) in zip(tArr, x0Arr, x1Arr)])
-        y1Arr = np.array([self.blocks[1].update(t, x1, y0)[0] for (t, x1, y0) in zip(tArr, x1Arr, y0Arr)])
+
+        y0Arr = np.array([self.blocks[0].update(t, x0, x1)[0] for (t, x0, x1) in zip(kArr, x0Arr, x1Arr)])
+        y1Arr = np.array([self.blocks[1].update(t, x1, y0)[0] for (t, x1, y0) in zip(kArr, x1Arr, y0Arr)])
         return tArr, x0Arr, x1Arr, y0Arr, y1Arr

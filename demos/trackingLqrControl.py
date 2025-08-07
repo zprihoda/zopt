@@ -1,9 +1,9 @@
 import cvxpy as cvx
 import jax
-import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import numpy as np
 
+from zProj.jaxUtils import interpMapped
 from zProj.quadcopter import Quadcopter
 from zProj.simulator import Simulator, SimBlock
 from zProj.plottingTools import plotTimeTrajectory
@@ -41,23 +41,10 @@ def getOpenLoopTrajectory(
         raise RuntimeError("CVX failed to converge!")
 
     # Use interp to convert to continuous functions
-    x = xTraj.value.T
-    u = (du.value + uTrim).T
-    t = jnp.concatenate([jnp.array([-1]), tTraj, jnp.array([np.inf])])
-    x = jnp.concatenate([x[:, [0]], x, x[:, [-1]]], axis=1)
-    u = jnp.concatenate([u[:, [0]], u, u[:, [-1]]], axis=1)
-    xFun = lambda tq: jaxInterp(t, x, tq)
-    uFun = lambda tq: jaxInterp(t, u, tq)
+    xFun = lambda tq: interpMapped(tq, tTraj, xTraj.value.T)
+    uFun = lambda tq: interpMapped(tq, tTraj, (du.value + uTrim).T)
 
     return xFun, uFun
-
-
-def jaxInterp(x, y, xq):
-    """Jax compliant linear vector interpolation"""
-    idx = jnp.searchsorted(x, xq) - 1
-    frac = (xq - x[idx]) / (x[idx + 1] - x[idx])
-    yq = (1 - frac) * y[:, idx] + frac * y[:, idx + 1]
-    return yq
 
 
 def controller(t, xDyn, xCtrl, xTraj, uTraj, Ci, Ki, Kp):

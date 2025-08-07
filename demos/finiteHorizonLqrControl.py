@@ -1,10 +1,10 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
+from zProj.lqrUtils import finiteHorizonLqr, proportionalFeedbackController
+from zProj.plottingTools import plotTimeTrajectory
 from zProj.quadcopter import Quadcopter
 from zProj.simulator import Simulator, SimBlock
-from zProj.plottingTools import plotTimeTrajectory
-from zProj.lqrUtils import finiteHorizonLqr, proportionalFeedbackController
 
 
 def main():

@@ -1,9 +1,9 @@
-import jax.numpy as jnp
 import numpy as np
 import numpy.linalg as npl
 import scipy.linalg as spl
 import scipy.integrate as spi
 
+from zProj.jaxUtils import interpMapped
 from typing import Callable
 
 
@@ -43,19 +43,11 @@ def _lqrHjb(
     R_inv: Callable[[float], np.ndarray],
     n: int
 ) -> np.ndarray:
-    """LQR Hamilton Jacobia Bellman equation"""
+    """LQR Hamilton Jacobi Bellman equation"""
     V = V.reshape((n, n))
     dV = -Q(t) + V @ B(t) @ R_inv(t) @ B(t).T @ V - V @ A(t) - A(t).T @ V
     dV = dV.reshape(-1)
     return dV
-
-
-def finiteHorizonValueInterp(t, V, tq):
-    """Jax compliant linear vector interpolation"""
-    idx = jnp.searchsorted(t, tq) - 1
-    frac = (tq - t[idx]) / (t[idx + 1] - t[idx])
-    Vq = (1 - frac) * V[:, idx] + frac * V[:, idx + 1]
-    return Vq
 
 
 def finiteHorizonLqr(
@@ -97,10 +89,8 @@ def finiteHorizonLqr(
     # Setup gain interpolation function
     t = out.t[::-1]  # Flip to forward time
     V = out.y[:, ::-1]
-    t = jnp.concatenate([jnp.array([t[0] - 1]), t, jnp.array([jnp.inf])])  # Add extrapolation values
-    V = jnp.concatenate([V[:, [0]], V, V[:, [-1]]], axis=1)
 
-    Vfun = lambda tq: finiteHorizonValueInterp(t, V, tq)
+    Vfun = lambda tq: interpMapped(tq, t, V)
     K = lambda t: R_inv(t) @ B(t).T @ Vfun(t).reshape((n, n))
     return K
 

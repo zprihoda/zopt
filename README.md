@@ -2,17 +2,13 @@
 A random collection of small projects
 
 ## TODO:
-- discrete-lqr
-    - Update all demos to work with partial sim refactor
-    - Add discrete functionality to sim
+### All
 - Short Tasks:
     - Create controllers module
         - Move proportionalFeedbackController from lqrUtils to controllers
         - Add integral controller from integralLqrControl demo.
         - Create/move tests
 - Tasks:
-    - Create jaxUtils module
-        - Add interp, and any other useful jax functions.
     - Add discrete LQR (for all of the above?)
     - Add iterative LQR demo
     - Write quadcopter animation
