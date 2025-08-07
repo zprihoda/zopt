@@ -59,12 +59,14 @@ class Simulator():
 
         Arguments
         ---------
-            blocks: List of simBlocks to use.
-            t_span: Start and end time to simulate
-            method: Method of solve_ivp to use
-            t_eval: Times at which to store the computed solution
+            blocks : List of simBlocks to use.
+            t_span : Start and end time to simulate
+            method : Method of solve_ivp to use (continuous only)
+            t_eval : Times at which to store the computed solution (continuous only)
 
-        Note: Currently the sim only supports 2 blocks and will connect them as follows:
+        Notes
+        -----
+        Currently the sim only supports 2 blocks and will connect them as follows:
         ```
         (y0, xDot0) = blocks[0].update(t, x0, x1)
         (y1, xDot1) = blocks[1].update(t, x1, y0)
@@ -141,11 +143,11 @@ class Simulator():
 
         Returns
         -------
-            tArr: Array of times
-            x0Arr: Array of block0 states
-            x1Arr: Array of block1 states
-            y0Arr: Array of block0 outputs
-            y1Arr: Array of block1 outputs
+            tArr : (N,) Array of times
+            x0Arr : (N,n0) Array of block0 states
+            x1Arr : (N,n1) Array of block1 states
+            y0Arr : (N,m0) Array of block0 outputs. For discrete, size is (N-1,m0)
+            y1Arr : (N,m1) Array of block1 outputs. For discrete, size is (N-1,m1)
         """
         x0 = np.concatenate([block.x0 for block in self.blocks])
 
