@@ -120,7 +120,20 @@ class Simulator():
         return dx
 
     def _internalStepFunDiscrete(self, k, x):
-        raise NotImplementedError("Discrete time step function not implemented")
+        x0, x1 = self._getStates(x)
+        y0, x0 = self.blocks[0].update(k, x0, x1)
+        y1, x1 = self.blocks[1].update(k, x1, y0)
+        x = jnp.concatenate([x0, x1])
+        return x
+
+    def _solve_ivp_discrete(self, step_fun, N, x0):
+        n = len(x0)
+        xArr = np.zeros((N + 1, n))
+        xArr[0] = x0
+        for k in range(N):
+            xArr[k + 1] = step_fun(k, xArr[k])
+        tArr = np.arange(0, N + 1) * self.dt
+        return tArr, xArr
 
     def simulate(self):
         """
@@ -138,11 +151,12 @@ class Simulator():
 
         if self.dt == 0:
             out = spi.solve_ivp(self._step_fun, self.t_span, x0, method=self.method, t_eval=self.t_eval)
+            tArr = out.t
+            xArr = out.y.T
         else:
-            raise NotImplementedError("Discrete time sim not implemented")
+            N = int(np.ceil(self.t_span[1] / self.dt))
+            tArr, xArr = self._solve_ivp_discrete(self._step_fun, N, x0)
 
-        tArr = out.t
-        xArr = out.y.T
         x0Arr = xArr[:, :self.blocks[0].nx]
         x1Arr = xArr[:, self.blocks[0].nx:]
         y0Arr = np.array([self.blocks[0].update(t, x0, x1)[0] for (t, x0, x1) in zip(tArr, x0Arr, x1Arr)])

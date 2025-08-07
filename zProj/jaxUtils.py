@@ -3,6 +3,7 @@ import jax.numpy as jnp
 
 from functools import partial
 
+
 @partial(jax.jit, static_argnames=["left", "right", "period"])
 @partial(jax.vmap, in_axes=(None, None, 0))
 def interpMapped(x: jnp.ndarray, xp: jnp.ndarray, fp: float, left=None, right=None, period=None):
