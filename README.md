@@ -2,10 +2,6 @@
 A random collection of small projects
 
 ## TODO:
-### Current: discrete-sim
-- Add discrete functionality to sim
-- Finish discreteFiniteHorizonLqr demo
-
 ### All
 - Short Tasks:
     - Create controllers module
