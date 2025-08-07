@@ -51,5 +51,5 @@ def test_simulateDiscrete():
     tArr, xCtrlArr, xDynArr, yCtrlArr, yDynArr = sim.simulate()
     assert len(tArr) == xDynArr.shape[0]
     assert len(tArr) == xCtrlArr.shape[0]
-    assert len(tArr) == yCtrlArr.shape[0]
-    assert len(tArr) == yDynArr.shape[0]
+    assert len(tArr) == yCtrlArr.shape[0] + 1  # For discrete sims, we return up to t[N], x[N], y[N-1]
+    assert len(tArr) == yDynArr.shape[0] + 1

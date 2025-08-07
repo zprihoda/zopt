@@ -153,12 +153,15 @@ class Simulator():
             out = spi.solve_ivp(self._step_fun, self.t_span, x0, method=self.method, t_eval=self.t_eval)
             tArr = out.t
             xArr = out.y.T
+            kArr = tArr  # For resampling y
         else:
             N = int(np.ceil(self.t_span[1] / self.dt))
             tArr, xArr = self._solve_ivp_discrete(self._step_fun, N, x0)
+            kArr = np.arange(0, len(tArr) - 1)  # For resampling y
 
         x0Arr = xArr[:, :self.blocks[0].nx]
         x1Arr = xArr[:, self.blocks[0].nx:]
-        y0Arr = np.array([self.blocks[0].update(t, x0, x1)[0] for (t, x0, x1) in zip(tArr, x0Arr, x1Arr)])
-        y1Arr = np.array([self.blocks[1].update(t, x1, y0)[0] for (t, x1, y0) in zip(tArr, x1Arr, y0Arr)])
+
+        y0Arr = np.array([self.blocks[0].update(t, x0, x1)[0] for (t, x0, x1) in zip(kArr, x0Arr, x1Arr)])
+        y1Arr = np.array([self.blocks[1].update(t, x1, y0)[0] for (t, x1, y0) in zip(kArr, x1Arr, y0Arr)])
         return tArr, x0Arr, x1Arr, y0Arr, y1Arr

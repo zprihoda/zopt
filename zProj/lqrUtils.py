@@ -43,7 +43,7 @@ def _lqrHjb(
     R_inv: Callable[[float], np.ndarray],
     n: int
 ) -> np.ndarray:
-    """LQR Hamilton Jacobia Bellman equation"""
+    """LQR Hamilton Jacobi Bellman equation"""
     V = V.reshape((n, n))
     dV = -Q(t) + V @ B(t) @ R_inv(t) @ B(t).T @ V - V @ A(t) - A(t).T @ V
     dV = dV.reshape(-1)
