@@ -209,6 +209,70 @@ def discreteInfiniteHorizonLqr(
     return L
 
 
+def bilinearAffineLqr(
+    A: np.ndarray,
+    B: np.ndarray,
+    d: np.ndarray,
+    Q: np.ndarray,
+    R: np.ndarray,
+    H: np.ndarray,
+    q: np.ndarray,
+    r: np.ndarray,
+    q0: np.ndarray,
+    N: int
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Finite Horizon LQR with bilinear cost and affine dynamics
+
+    Arguments
+    ---------
+        A : Array of shape (N,n,n)
+        B : Array of shape (N,n,m)
+        d : Array of shape (N,n)
+        Q : Array of shape (N,n,n)
+        R : Array of shape (N,m,m)
+        H : Array of shape (N,m,n)
+        q : Array of shape (N,n)
+        r : Array of shape (N,m)
+        q0 : Array of shape (N,)
+        N : Horizon depth
+
+    Returns
+    -------
+        L : Optimal lqr gains indexed by time step: `L[k]`
+        l : Optimal lqr offset indexed by time step `l[k]`
+    """
+    (n, m) = B.shape[1:]
+
+    # Initialize
+    V = Q[-1]
+    v = q[-1]
+    v0 = q0[-1]
+
+    LArr = np.zeros((N, m, n))
+    lArr = np.zeros((N, m))
+    for k in range(N - 1, -1, -1):
+        Su = r[k] + v.T @ B[k] + d[k].T @ V @ B[k]
+        Suu = R[k] + B[k].T @ V @ B[k]
+        Sux = H[k] + B[k].T @ V @ A[k]
+
+        L = np.linalg.solve(Suu, Sux)
+        l = np.linalg.solve(Suu, Su)  # TODO: Combine with above solve to speed up computation (only one factorization)
+
+        VNew = Q[k] + A[k].T @ V @ A[k] - L.T @ Suu @ L
+        vNew = q[k] + A[k].T @ (v + V @ d[k]) - Sux.T @ l
+        v0New = v0 + q0[k] + d[k].T @ v + 0.5 * d[k].T @ V @ d[k] - 0.5 * l.T @ Su
+
+        V = VNew
+        v = vNew
+        v0 = v0New
+
+        LArr[k] = L
+        lArr[k] = l
+
+    return LArr, lArr
+
+
 ## Basic LQR Controllers
 def proportionalFeedbackController(x, x0, u0, K):
     control = -K @ (x - x0) + u0

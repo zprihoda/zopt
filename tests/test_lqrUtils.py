@@ -79,6 +79,26 @@ def test_discreteInfiniteHorizonLqr():
     assert K == pytest.approx(K_exp)
 
 
+def test_bilinearAffineLqr():
+    N = 2
+    A = np.repeat(np.eye(2)[None, :, :], N, axis=0)
+    B = np.repeat(np.eye(2)[None, :, :], N, axis=0)
+    d = np.repeat(np.ones(2)[None, :], N, axis=0)
+    Q = np.repeat(np.eye(2)[None, :, :], N, axis=0)
+    R = np.repeat(np.eye(2)[None, :, :], N, axis=0)
+    H = np.repeat(np.eye(2)[None, :, :], N, axis=0)
+    q = np.repeat(np.ones(2)[None, :], N, axis=0)
+    r = np.repeat(np.ones(2)[None, :], N, axis=0)
+    q0 = np.ones(N)
+    K,k = lqr.bilinearAffineLqr(A, B, d, Q, R, H, q, r, q0, N)
+
+    # TODO: Check these values
+    assert K[1] == pytest.approx(np.eye(2))
+    assert K[0] == pytest.approx(np.eye(2))
+    assert k[1] == pytest.approx(1.5*np.ones(2))
+    assert k[0] == pytest.approx(np.ones(2))
+
+
 def test_proportionalFeedbackController():
     K = np.array([1, 1])
     x0 = np.zeros(2)
