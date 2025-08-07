@@ -45,9 +45,9 @@ def test_simluatorInitDiscrete():
 
 
 def test_simulateDiscrete():
-    controlBlock = SimBlock(controlFun, np.array([]), dt=1, jittable=False, name="controller")
-    dynBlock = SimBlock(dynFun, np.array([0.]), dt=1, jittable=False, name="dynamics")
-    sim = Simulator([controlBlock, dynBlock], (0, 1))
+    controlBlock = SimBlock(controlFun, np.array([]), dt=0.1, jittable=False, name="controller")
+    dynBlock = SimBlock(dynFun, np.array([0.]), dt=0.1, jittable=False, name="dynamics")
+    sim = Simulator([controlBlock, dynBlock], (0, 0.2))
     tArr, xCtrlArr, xDynArr, yCtrlArr, yDynArr = sim.simulate()
     assert len(tArr) == xDynArr.shape[0]
     assert len(tArr) == xCtrlArr.shape[0]
