@@ -4,7 +4,6 @@ A random collection of small projects
 ## TODO:
 ### All
 - Iterative LQR
-    - Add discreteBilinearAffineLqr functions + tests
     - Add iterative LQR function + tests + demo
     - Add differential dynamic programming function + tests + demo
 - Short Tasks:
@@ -17,6 +16,7 @@ A random collection of small projects
 - Simulator:
     - Add support for multi-rate systems
     - Generalize simBlocks + add signal map
+    - Write custom ode solver that outputs dx and y, so we can capture outputs as we run
     - Add support for output memory (can implement as a discrete memory block once multi-rate implemented)
         - Would let us skip the resampling after running the sim
     - Consider diffrax for ode integration?
