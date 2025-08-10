@@ -1,61 +1,65 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+from zProj.quadcopter import Quadcopter
 from zProj.lqrUtils import bilinearAffineLqr
+from zProj.simulator import Simulator, SimBlock
+from zProj.plottingTools import plotTimeTrajectory
 
-# TODO: Consider converting this demo to use quadcopter and sim
+rng = np.random.default_rng()
+
+
+def controller(x, x0, u0, L, l):
+    control = -L @ (x - x0) + u0 - l
+    dxCtrl = np.array([])  # no controller states
+    return control, dxCtrl
 
 
 def main():
     # User inputs
-    n = 3
-    m = 2
-    N = 10
+    dt = 0.1
+    N = 100
+    x0Dyn = np.array([0, 0, 0, 0.5, 0.5, 0.1, 0, 0, 0, 0, 0, 0])
+
+    # Get Linear dynamics
+    ac = Quadcopter()
+    x0, u0 = ac.trim(np.zeros(3))
+    A, B = ac.linearize(x0, u0, dt=0.1)
+    n, m = B.shape
 
     # Generate random problem
-    A = np.random.rand(N, n, n)
-    B = np.random.rand(N, n, m)
-    d = np.random.rand(N, n)
-    Q = np.random.rand(N, n, n)
-    R = np.random.rand(N, m, m)
-    H = np.random.rand(N, m, n)
-    qVec = np.random.rand(N, n)
-    rVec = np.random.rand(N, m)
-    q = np.random.rand(N)
-
-    ## Enforce R > 0
-    R = np.stack([R[i].T @ R[i] for i in range(N)], axis=0) + 0.1 * np.eye(m)[None, :, :]
+    A = np.repeat(A[None, :, :], N, axis=0)
+    B = np.repeat(B[None, :, :], N, axis=0)
+    d = np.zeros((N, n))
+    Q = np.repeat(np.eye(n)[None, :, :], N, axis=0)
+    R = np.repeat(np.eye(m)[None, :, :], N, axis=0)
+    H = 0.2 * rng.normal(size=(N, m, n))  # random cross penalty on state-control
+    qVec = 0.1 * np.repeat(np.array([1, -1, 0, 0, 0, 0, 0, 0])[None, :], N, axis=0)
+    rVec = np.zeros((N, m))
+    q = np.zeros(N)
 
     # Solve for finite horizon LQR
     L, l = bilinearAffineLqr(A, B, d, Q, R, H, qVec, rVec, q, N)
 
     # Simulate Problem
-    x = N * np.random.rand(n)
-    xArr = np.zeros((N + 1, n))
-    xArr[0] = x
-    uArr = np.zeros((N, m))
-    for i in range(N):
-        u = -L[i] @ x - l[i]
-        x = A[i] @ x + B[i] @ u + d[i]
-        uArr[i] = u
-        xArr[i + 1] = x
+    dynamics = SimBlock(lambda k, x, u: (None, x + dt * ac.inertialDynamics(x, u)), x0Dyn, dt=dt, name="Dynamics")
+    controllerBlock = SimBlock(
+        lambda k, xCtrl, x: controller(x[:8], x0, u0, L[k], l[k]),
+        np.array([]),
+        dt=dt,
+        name="Controller",
+        jittable=False
+    )
+    t_span = (0, N * dt)
+    sim = Simulator([controllerBlock, dynamics], t_span)
+    tArr, _, xArr, uArr, _ = sim.simulate()
 
-    # Plot results
-    fig, axs = plt.subplots(n, 1, sharex=True)
-    for i in range(n):
-        axs[i].plot(range(N + 1), xArr[:, i])
-        axs[i].grid()
-        axs[i].set_ylabel("$x_{:}$".format(i))
-    axs[-1].set_xlabel("k")
-    fig.suptitle("State Trajectory")
-
-    fig, axs = plt.subplots(m, 1, sharex=True)
-    for i in range(m):
-        axs[i].plot(range(N), uArr[:, i])
-        axs[i].grid()
-        axs[i].set_ylabel("$u_{:}$".format(i))
-    axs[-1].set_xlabel("k")
-    fig.suptitle("Control Trajectory")
+    # Plot Results
+    plotTimeTrajectory(tArr, xArr[:, 0:3], names=['u', 'v', 'w'], title="Body Velocities")
+    plotTimeTrajectory(tArr, xArr[:, 3:6], names=['p', 'q', 'r'], title="Body Rates")
+    plotTimeTrajectory(tArr, xArr[:, 6:9], names=['phi', 'theta', 'psi'], title="Euler Angles")
+    plotTimeTrajectory(tArr, xArr[:, 9:12], names=['x', 'y', 'z'], title="Positions")
+    plotTimeTrajectory(tArr[:-1], uArr, names=["thrust", "pDot", "qDot", "rDot"], title="Pseudo Controls")
     plt.show()
 
 

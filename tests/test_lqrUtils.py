@@ -91,10 +91,9 @@ def test_bilinearAffineLqr():
     q0 = np.ones(N)
     K, k = lqr.bilinearAffineLqr(A, B, d, Q, R, H, q, r, q0, N)
 
-    # TODO: Check these values
     assert K[1] == pytest.approx(np.eye(2))
-    assert K[0] == pytest.approx(np.eye(2))
     assert k[1] == pytest.approx(1.5 * np.ones(2))
+    assert K[0] == pytest.approx(np.eye(2))
     assert k[0] == pytest.approx(np.ones(2))
 
 
