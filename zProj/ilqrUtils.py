@@ -43,7 +43,7 @@ class iLQR():
         self.tol = tol
         self._computeDerivatives(
             dynFun, costFun, terminalCostFun, jittable
-        )  # Also stores dynamics and cost functions as instance parametersd
+        )  # Also stores dynamics and cost functions as instance parameters
 
     def _computeDerivatives(self, f, c, cf, jittable):
         fx = jax.jacrev(f, 1)
@@ -98,8 +98,7 @@ class iLQR():
         -------
             xTraj : Optimal state trajectory of shape (N+1,n)
             uTraj : Optimal control trajectory of shape (N,m)
-            Pi : Optimal control policy of the form u = Pi(k,dx)
-                where `dx = x - xTraj[k]`
+            LArr : Optimal control gains of the form u = LArr[k] @ (x - xTraj[k])
         """
 
         # Get various dimensions
@@ -109,12 +108,13 @@ class iLQR():
         # Initialize stuff
         xPrev = np.inf * np.ones((N + 1, n))
         u = self.u
-        Pi = lambda k, dx: 0  # du = Pi(k,dx)
+        LArr = np.zeros((N, m, n))
+        lArr = np.zeros((N, m))
         converged = False
 
         # Main iLQR loop
         for iter in range(self.maxIter):
-            x, u = self._forwardPass(u, xPrev, Pi)
+            x, u = self._forwardPass(u, xPrev, LArr, lArr, init=(iter == 0))
 
             # Check convergence Criteria
             delta = np.linalg.norm(x - xPrev)
@@ -122,16 +122,15 @@ class iLQR():
                 converged = True
                 break
 
-            Pi = self._backwardPass(x, u)
-
+            LArr, lArr = self._backwardPass(x, u)
             xPrev = x.copy()
 
         if not converged:
             warnings.warn("ILQR reached max iterations and did not converge. Most recent delta = {:.3g}".format(delta))
 
-        return x, u, Pi
+        return x, u, LArr
 
-    def _forwardPass(self, u, xPrev, Pi):
+    def _forwardPass(self, u, xPrev, LArr, lArr, init):
         N, m = u.shape
         n = len(self.x0)
         x = np.zeros((N + 1, n))
@@ -139,7 +138,10 @@ class iLQR():
 
         for k in range(N):
             dx = x[k] - xPrev[k]
-            du = Pi(k, dx)
+            if init:
+                du = np.zeros(m)
+            else:
+                du = lArr[k] + LArr[k] @ dx
             u[k] = u[k] + du
             x[k + 1] = self.f(k, x[k], u[k])
 
@@ -177,7 +179,4 @@ class iLQR():
             lArr[k] = l
             LArr[k] = L
 
-        # Update control policy
-        Pi = lambda k, dx: lArr[k] + LArr[k] @ dx
-
-        return Pi
+        return LArr, lArr

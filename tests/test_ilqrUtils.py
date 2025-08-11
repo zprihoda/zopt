@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 import zProj.ilqrUtils as ilqr
 
 
@@ -31,8 +30,5 @@ def test_solve():
     N = 3
     u = np.zeros((N, 2))
     prob = ilqr.iLQR(dynFun, costFun, x0, u, terminalCostFun=terminalCost)
-    x, u, Pi = prob.solve()
-
-    assert Pi(0, np.array([1, 1])).shape == (2,)
-    with pytest.raises(IndexError):
-        Pi(N, np.array([1, 1]))
+    x, u, LArr = prob.solve()
+    assert LArr.shape == (N, 2, 2)
