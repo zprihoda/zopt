@@ -56,7 +56,7 @@ class Quadcopter():
         pqr = state[3:6]
 
         # ADB functions
-        force_lin = jnp.array([-0.1, -0.1, -0.2])
+        force_lin = jnp.array([-0.2, -0.2, -0.3])
         force_quad = jnp.array([-0.05, -0.05, -0.1])
         moment_lin = jnp.array([-0.1, -0.1, -0.05])
 

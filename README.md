@@ -3,24 +3,26 @@ A random collection of small projects
 
 ## TODO:
 ### All
+- Iterative LQR
+    - Add iterative LQR function + tests + demo
+    - Add differential dynamic programming function + tests + demo
 - Short Tasks:
     - Create controllers module
         - Move proportionalFeedbackController from lqrUtils to controllers
         - Add integral controller from integralLqrControl demo.
         - Create/move tests
 - Tasks:
-    - Add discrete LQR (for all of the above?)
-    - Add iterative LQR demo
     - Write quadcopter animation
 - Simulator:
-    - Add support for discrete controllers?
     - Add support for multi-rate systems
     - Generalize simBlocks + add signal map
-    - Add support for output memory (can implement as a discrete memory block once above points are addressed)
+    - Write custom ode solver that outputs dx and y, so we can capture outputs as we run
+    - Add support for output memory (can implement as a discrete memory block once multi-rate implemented)
+        - Would let us skip the resampling after running the sim
     - Consider diffrax for ode integration?
 - PlottingTools
     - Add support for structured arrays, can auto-extract names
-    - Rename plotTrajectory to plotTrajectorySubplots
+    - Rename plotTrajectory to plotTrajectorySubplots?
     - Add plotTrajectorySingleAx (plots multiple signals on one axis)
     - Add plot positionTrajectory (or generic phase plot?)
 - Quadcopter:

@@ -27,9 +27,10 @@ def main():
     N = int(T / dt)
     Ak = np.repeat(A[None, :, :], N, axis=0)
     Bk = np.repeat(B[None, :, :], N, axis=0)
-    Qk = np.repeat(Q[None, :, :], N, axis=0)
+    Qk = np.repeat(Q[None, :, :], N - 1, axis=0)
+    Qk = np.concatenate([Qf[None, :, :], Qk], axis=0)
     Rk = np.repeat(R[None, :, :], N, axis=0)
-    K = discreteFiniteHorizonLqr(Ak, Bk, Qk, Rk, Qf, N)
+    K = discreteFiniteHorizonLqr(Ak, Bk, Qk, Rk, N)
     xCtrl0 = np.array([])
 
     # Simple Simulation

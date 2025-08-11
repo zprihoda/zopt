@@ -63,8 +63,7 @@ def test_discreteFiniteHorizonLqr():
     B = np.repeat(np.eye(2)[None, :, :], N, axis=0)
     Q = np.repeat(np.eye(2)[None, :, :], N, axis=0)
     R = np.repeat(np.eye(2)[None, :, :], N, axis=0)
-    Q_N = np.eye(2)
-    K = lqr.discreteFiniteHorizonLqr(A, B, Q, R, Q_N, N)
+    K = lqr.discreteFiniteHorizonLqr(A, B, Q, R, N)
     assert K[1] == pytest.approx(0.5 * np.eye(2))
     assert K[0] == pytest.approx(0.6 * np.eye(2))
 
@@ -77,6 +76,25 @@ def test_discreteInfiniteHorizonLqr():
     K = lqr.discreteInfiniteHorizonLqr(A, B, Q, R)
     K_exp = (1 + np.sqrt(5)) / (3 + np.sqrt(5)) * np.eye(2)  # Analytical solution, v = (1 + sqrt(5))/2, K = v/(v+1)
     assert K == pytest.approx(K_exp)
+
+
+def test_bilinearAffineLqr():
+    N = 2
+    A = np.repeat(np.eye(2)[None, :, :], N, axis=0)
+    B = np.repeat(np.eye(2)[None, :, :], N, axis=0)
+    d = np.repeat(np.ones(2)[None, :], N, axis=0)
+    Q = np.repeat(np.eye(2)[None, :, :], N, axis=0)
+    R = np.repeat(np.eye(2)[None, :, :], N, axis=0)
+    H = np.repeat(np.eye(2)[None, :, :], N, axis=0)
+    q = np.repeat(np.ones(2)[None, :], N, axis=0)
+    r = np.repeat(np.ones(2)[None, :], N, axis=0)
+    q0 = np.ones(N)
+    K, k = lqr.bilinearAffineLqr(A, B, d, Q, R, H, q, r, q0, N)
+
+    assert K[1] == pytest.approx(np.eye(2))
+    assert k[1] == pytest.approx(1.5 * np.ones(2))
+    assert K[0] == pytest.approx(np.eye(2))
+    assert k[0] == pytest.approx(np.ones(2))
 
 
 def test_proportionalFeedbackController():
