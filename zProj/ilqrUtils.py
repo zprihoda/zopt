@@ -157,15 +157,15 @@ class iLQR():
         LArr = np.zeros((N, m, n))
 
         for k in range(N - 1, -1, -1):
-            fxk = self.fx(x[k], u[k])
-            fuk = self.fu(x[k], u[k])
+            fxk = self.fx(k, x[k], u[k])
+            fuk = self.fu(k, x[k], u[k])
 
-            Q = self.c(x[k], u[k]) + v
-            Qx = self.cx(x[k], u[k]) + fxk.T @ vVec
-            Qu = self.cu(x[k], u[k]) + fuk.T @ vVec
-            Qxx = self.cxx(x[k], u[k]) + fxk.T @ V @ fxk
-            Quu = self.cuu(x[k], u[k]) + fuk.T @ V @ fuk
-            Qux = self.cux(x[k], u[k]) + fuk.T @ V @ fxk
+            Q = self.c(k, x[k], u[k]) + v
+            Qx = self.cx(k, x[k], u[k]) + fxk.T @ vVec
+            Qu = self.cu(k, x[k], u[k]) + fuk.T @ vVec
+            Qxx = self.cxx(k, x[k], u[k]) + fxk.T @ V @ fxk
+            Quu = self.cuu(k, x[k], u[k]) + fuk.T @ V @ fuk
+            Qux = self.cux(k, x[k], u[k]) + fuk.T @ V @ fxk
 
             l = -np.linalg.solve(Quu, Qu)
             L = -np.linalg.solve(Quu, Qux)
@@ -178,6 +178,6 @@ class iLQR():
             LArr[k] = L
 
         # Update control policy
-        Pi = lambda dx, k: lArr[k] + LArr[k] @ dx
+        Pi = lambda k, dx: lArr[k] + LArr[k] @ dx
 
         return Pi
