@@ -25,17 +25,31 @@ class iLQR():
 
         Arguments
         ---------
-            dynFun : Discrete dynamics function of the form `xOut = f(k,x,u)`
-            costFun : Discrete cost function of the form `j = c(k,x,u)`
-            x0 : Initial state, array of shape (n,)
-            u : Initial guess for control trajectory, array of shape (N,m)
-            terminalCostFun : Terminal cost function of the form: `j = cf(x)`
-                Default: cf(x) = c(N,x,0)
-            maxIter : Maximum number of optimization iterations
-                Default: 100
-            tol : Convergence tolerance, will exit if norm(xPrev-x) <= tol
-                Default 1e-3
-            jittable : Specifies whether the dynamics and cost functions are compatible with jax.jit
+        dynFun : Callable[[int, np.ndarray, np.ndarray], np.ndarray]
+            Discrete dynamics function of the form `xOut = f(k,x,u)`
+        costFun : Callable[[int, np.ndarray, np.ndarray], float]
+            Discrete cost function of the form `j = c(k,x,u)`
+        x0 : np.ndarray
+            Initial state, array of shape (n,)
+        u : np.ndarray,
+            Initial guess for control trajectory, array of shape (N,m)
+        terminalCostFun : Callable[[np.ndarray], float], optional
+            Terminal cost function of the form: `j = cf(x)`
+            Default: cf(x) = c(N,x,0)
+        maxIter : int, optional
+            Maximum number of optimization iterations
+            Default: 100
+        tol : float, optional
+            Convergence tolerance, will exit if norm(xPrev-x) <= tol
+            Default: 1e-3
+        jittable : bool, optional
+            Specifies whether the dynamics and cost functions are compatible with jax.jit
+            Default: True
+
+        Notes
+        -----
+        Iterative lqr find local optima and as such, is very dependent on the initial guess.
+        If the algorithm is failing to converge, consider providing a different starting point.
         """
         self.x0 = x0
         self.u = u
@@ -96,9 +110,12 @@ class iLQR():
 
         Returns
         -------
-            xTraj : Optimal state trajectory of shape (N+1,n)
-            uTraj : Optimal control trajectory of shape (N,m)
-            LArr : Optimal control gains of the form u = LArr[k] @ (x - xTraj[k])
+        xTraj : np.ndarray
+            Optimal state trajectory of shape (N+1,n)
+        uTraj : np.ndarray
+            Optimal control trajectory of shape (N,m)
+        LArr : np.ndarray
+            Optimal control gains of the form u = LArr[k] @ (x - xTraj[k])
         """
 
         # Get various dimensions

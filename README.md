@@ -4,8 +4,8 @@ A random collection of small projects
 ## TODO:
 ### All
 - Iterative LQR
-    - Add iterative LQR function + tests + demo
     - Add differential dynamic programming function + tests + demo
+    - Consider adding fullOutput option to iLqr and DDP, so we can plot animations?
 - Short Tasks:
     - Create controllers module
         - Move proportionalFeedbackController from lqrUtils to controllers
