@@ -48,7 +48,7 @@ class iLQR():
 
         Notes
         -----
-        Iterative lqr find local optima and as such, is very dependent on the initial guess.
+        Iterative lqr is very dependent on the initial guess.
         If the algorithm is failing to converge, consider providing a different starting point.
         """
         self.x0 = x0
@@ -185,6 +185,101 @@ class iLQR():
             Qxx = self.cxx(k, x[k], u[k]) + fxk.T @ V @ fxk
             Quu = self.cuu(k, x[k], u[k]) + fuk.T @ V @ fuk
             Qux = self.cux(k, x[k], u[k]) + fuk.T @ V @ fxk
+
+            l = -np.linalg.solve(Quu, Qu)
+            L = -np.linalg.solve(Quu, Qux)
+
+            v = Q - 0.5 * l.T @ Quu @ l
+            vVec = Qx - L.T @ Quu @ l
+            V = Qxx - L.T @ Quu @ L
+
+            lArr[k] = l
+            LArr[k] = L
+
+        return LArr, lArr
+
+
+class DDP(iLQR):
+
+    def __init__(
+        self,
+        dynFun: Callable[[int, np.ndarray, np.ndarray], np.ndarray],
+        costFun: Callable[[int, np.ndarray, np.ndarray], float],
+        x0: np.ndarray,
+        u: np.ndarray,
+        terminalCostFun: Callable[[np.ndarray], float] = None,
+        maxIter: int = 10,
+        tol: float = 1e-3,
+        jittable: bool = True
+    ):
+        """
+        Differential dynamic programming constructor
+
+        Arguments
+        ---------
+        dynFun : Callable[[int, np.ndarray, np.ndarray], np.ndarray]
+            Discrete dynamics function of the form `xOut = f(k,x,u)`
+        costFun : Callable[[int, np.ndarray, np.ndarray], float]
+            Discrete cost function of the form `j = c(k,x,u)`
+        x0 : np.ndarray
+            Initial state, array of shape (n,)
+        u : np.ndarray,
+            Initial guess for control trajectory, array of shape (N,m)
+        terminalCostFun : Callable[[np.ndarray], float], optional
+            Terminal cost function of the form: `j = cf(x)`
+            Default: cf(x) = c(N,x,0)
+        maxIter : int, optional
+            Maximum number of optimization iterations
+            Default: 100
+        tol : float, optional
+            Convergence tolerance, will exit if norm(xPrev-x) <= tol
+            Default: 1e-3
+        jittable : bool, optional
+            Specifies whether the dynamics and cost functions are compatible with jax.jit
+            Default: True
+
+        Notes
+        -----
+        Different dynamic programming is very dependent on the initial guess.
+        If the algorithm is failing to converge, consider providing a different starting point.
+        """
+        super().__init__(
+            dynFun, costFun, x0, u, terminalCostFun=terminalCostFun, maxIter=maxIter, tol=tol, jittable=jittable
+        )
+
+        # Compute missing derivatives
+        fxx = jax.jacfwd(self.fx, 1)
+        fux = jax.jacfwd(self.fu, 1)
+        fuu = jax.jacfwd(self.fu, 2)
+        if jittable:
+            fxx = jax.jit(fxx)
+            fux = jax.jit(fux)
+            fuu = jax.jit(fuu)
+        self.fxx = fxx
+        self.fux = fux
+        self.fuu = fuu
+
+    def _backwardPass(self, x, u):
+        N, m = u.shape
+        n = x.shape[1]
+
+        v = self.cf(x[N])
+        vVec = self.cfx(x[N])
+        V = self.cfxx(x[N])
+
+        lArr = np.zeros((N, m))
+        LArr = np.zeros((N, m, n))
+
+        for k in range(N - 1, -1, -1):
+            fxk = self.fx(k, x[k], u[k])
+            fuk = self.fu(k, x[k], u[k])
+
+            Q = self.c(k, x[k], u[k]) + v
+            Qx = self.cx(k, x[k], u[k]) + fxk.T @ vVec
+            Qu = self.cu(k, x[k], u[k]) + fuk.T @ vVec
+            Qxx = self.cxx(k, x[k], u[k]) + fxk.T @ V @ fxk + np.einsum('i,ijk', vVec, self.fxx(k, x[k], u[k]))
+            Quu = self.cuu(k, x[k], u[k]) + fuk.T @ V @ fuk + np.einsum('i,ijk', vVec, self.fuu(k, x[k], u[k]))
+            Qux = self.cux(k, x[k], u[k]) + fuk.T @ V @ fxk + np.einsum('i,ijk', vVec, self.fux(k, x[k], u[k]))
 
             l = -np.linalg.solve(Quu, Qu)
             L = -np.linalg.solve(Quu, Qux)
