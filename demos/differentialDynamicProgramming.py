@@ -4,7 +4,7 @@ import numpy as np
 from zProj.quadcopter import Quadcopter
 from zProj.simulator import Simulator, SimBlock
 from zProj.plottingTools import plotTimeTrajectory
-from zProj.ilqrUtils import iLQR
+from zProj.ilqrUtils import DDP
 
 
 def cost(k, x, u, Q, R):
@@ -18,7 +18,7 @@ def controller(k, x, xTraj, uTraj, LArr):
 def main():
     # User inputs
     x0 = np.zeros(12)
-    x0[9:12] = np.array([10, 0, 0])
+    x0[9:12] = np.array([0, 5, 0])
     dt = 0.1
     N = 100
     Q = np.eye(12)
@@ -29,12 +29,12 @@ def main():
     ac = Quadcopter()
     _, uTrim = ac.trim(np.zeros(3))
 
-    # Setup and solve iLQR problem
+    # Setup and solve DDP problem
     dynFun = lambda k, x, u: x + dt * ac.inertialDynamics(x, u)
     costFun = lambda k, x, u: cost(k, x, u, Q, R)
     terminalCostFun = None
     uGuess = np.repeat(uTrim[None, :], N, axis=0)
-    prob = iLQR(dynFun, costFun, x0, uGuess, terminalCostFun=terminalCostFun, maxIter=200, tol=1e-4)
+    prob = DDP(dynFun, costFun, x0, uGuess, terminalCostFun=terminalCostFun, maxIter=200, tol=1e-6)
     xTraj, uTraj, LArr = prob.solve()
 
     # Simple Simulation
@@ -55,19 +55,19 @@ def main():
     # Plot Results
     fig = plotTimeTrajectory(tArr, xTraj[:, 0:3], names=['u', 'v', 'w'], title="Body Velocities")
     plotTimeTrajectory(tSim, xSim[:, 0:3], fig=fig)
-    plt.legend(["iLQR Trajectory", "Sim"])
+    plt.legend(["DDP Trajectory", "Sim"])
     fig = plotTimeTrajectory(tArr, xTraj[:, 3:6], names=['p', 'q', 'r'], title="Body Rates")
     plotTimeTrajectory(tSim, xSim[:, 3:6], fig=fig)
-    plt.legend(["iLQR Trajectory", "Sim"])
+    plt.legend(["DDP Trajectory", "Sim"])
     fig = plotTimeTrajectory(tArr, xTraj[:, 6:9], names=['phi', 'theta', 'psi'], title="Euler Angles")
     plotTimeTrajectory(tSim, xSim[:, 6:9], fig=fig)
-    plt.legend(["iLQR Trajectory", "Sim"])
+    plt.legend(["DDP Trajectory", "Sim"])
     fig = plotTimeTrajectory(tArr, xTraj[:, 9:12], names=['x', 'y', 'z'], title="Positions")
     plotTimeTrajectory(tSim, xSim[:, 9:12], fig=fig)
-    plt.legend(["iLQR Trajectory", "Sim"])
+    plt.legend(["DDP Trajectory", "Sim"])
     fig = plotTimeTrajectory(tArr[:-1], uTraj, names=["thrust", "pDot", "qDot", "rDot"], title="Pseudo Controls")
     plotTimeTrajectory(tSim[:-1], uSim, fig=fig)
-    plt.legend(["iLQR Trajectory", "Sim"])
+    plt.legend(["DDP Trajectory", "Sim"])
     plt.show()
 
 
