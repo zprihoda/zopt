@@ -4,8 +4,12 @@ A random collection of small projects
 ## TODO:
 ### All
 - Iterative LQR
-    - Add differential dynamic programming function + tests + demo
-    - Consider adding fullOutput option to iLqr and DDP, so we can plot animations?
+    - iLQR + DDP improvements outlined in "Synthesis and Stabilization of Complex Behaviors through Online Trajectory Optimization"
+        - II.C: Improved Value Update
+        - II.D: Improved Linear Search
+        - II.F: Regularization Schedule
+    - Consider adding fullOutput option to iLqr and DDP, so we can plot animations of trajectory over time?
+    - Implement an MPC like demo with iLQR
 - Short Tasks:
     - Create controllers module
         - Move proportionalFeedbackController from lqrUtils to controllers

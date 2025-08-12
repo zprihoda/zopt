@@ -16,6 +16,8 @@ class iLQR():
         x0: np.ndarray,
         u: np.ndarray,
         terminalCostFun: Callable[[np.ndarray], float] = None,
+        muMin: float = 1e-6,
+        Delta0: float = 2,
         maxIter: int = 10,
         tol: float = 1e-3,
         jittable: bool = True
@@ -36,6 +38,12 @@ class iLQR():
         terminalCostFun : Callable[[np.ndarray], float], optional
             Terminal cost function of the form: `j = cf(x)`
             Default: cf(x) = c(N,x,0)
+        muMin : float
+            Minimum cost regularization term, larger mu biases each step towards the current trajectory
+            Default: 1e-6
+        Delta0 : float
+            Minimal modification factor
+            Default: 2
         maxIter : int, optional
             Maximum number of optimization iterations
             Default: 100
@@ -55,6 +63,8 @@ class iLQR():
         self.u = u
         self.maxIter = maxIter
         self.tol = tol
+        self.muMin = muMin
+        self.Delta0 = Delta0
         self._computeDerivatives(
             dynFun, costFun, terminalCostFun, jittable
         )  # Also stores dynamics and cost functions as instance parameters
@@ -104,6 +114,20 @@ class iLQR():
         self.cfx = cfx
         self.cfxx = cfxx
 
+    def _computeQ(self, k, x, u, V, vVec, v, mu):
+        n = len(x)
+        fxk = self.fx(k, x, u)
+        fuk = self.fu(k, x, u)
+        Vw = V + mu * np.eye(n)
+
+        Q = self.c(k, x, u) + v
+        Qx = self.cx(k, x, u) + fxk.T @ vVec
+        Qu = self.cu(k, x, u) + fuk.T @ vVec
+        Qxx = self.cxx(k, x, u) + fxk.T @ V @ fxk
+        Quu = self.cuu(k, x, u) + fuk.T @ Vw @ fuk
+        Qux = self.cux(k, x, u) + fuk.T @ Vw @ fxk
+        return Q, Qx, Qu, Qxx, Quu, Qux
+
     def solve(self) -> tuple[np.ndarray, np.ndarray, Callable[[int, np.ndarray], np.ndarray]]:
         """
         Solve the iLQR problem
@@ -128,6 +152,7 @@ class iLQR():
         LArr = np.zeros((N, m, n))
         lArr = np.zeros((N, m))
         converged = False
+        mu = self.muMin  # Initialize to minimum
 
         # Main iLQR loop
         for iter in range(self.maxIter):
@@ -139,7 +164,7 @@ class iLQR():
                 converged = True
                 break
 
-            LArr, lArr = self._backwardPass(x, u)
+            LArr, lArr, mu = self._backwardPass(x, u, mu)
             xPrev = x.copy()
 
         if not converged:
@@ -164,7 +189,7 @@ class iLQR():
 
         return x, u
 
-    def _backwardPass(self, x, u):
+    def _backwardPass(self, x, u, mu):
         N, m = u.shape
         n = x.shape[1]
 
@@ -176,15 +201,7 @@ class iLQR():
         LArr = np.zeros((N, m, n))
 
         for k in range(N - 1, -1, -1):
-            fxk = self.fx(k, x[k], u[k])
-            fuk = self.fu(k, x[k], u[k])
-
-            Q = self.c(k, x[k], u[k]) + v
-            Qx = self.cx(k, x[k], u[k]) + fxk.T @ vVec
-            Qu = self.cu(k, x[k], u[k]) + fuk.T @ vVec
-            Qxx = self.cxx(k, x[k], u[k]) + fxk.T @ V @ fxk
-            Quu = self.cuu(k, x[k], u[k]) + fuk.T @ V @ fuk
-            Qux = self.cux(k, x[k], u[k]) + fuk.T @ V @ fxk
+            Q, Qx, Qu, Qxx, Quu, Qux = self._computeQ(k, x[k], u[k], V, vVec, v, mu)
 
             l = -np.linalg.solve(Quu, Qu)
             L = -np.linalg.solve(Quu, Qux)
@@ -196,7 +213,7 @@ class iLQR():
             lArr[k] = l
             LArr[k] = L
 
-        return LArr, lArr
+        return LArr, lArr, mu
 
 
 class DDP(iLQR):
@@ -208,6 +225,8 @@ class DDP(iLQR):
         x0: np.ndarray,
         u: np.ndarray,
         terminalCostFun: Callable[[np.ndarray], float] = None,
+        muMin: float = 1e-6,
+        Delta0: float = 2,
         maxIter: int = 10,
         tol: float = 1e-3,
         jittable: bool = True
@@ -228,6 +247,12 @@ class DDP(iLQR):
         terminalCostFun : Callable[[np.ndarray], float], optional
             Terminal cost function of the form: `j = cf(x)`
             Default: cf(x) = c(N,x,0)
+        muMin : float
+            Minimum cost regularization term, larger mu biases each step towards the current trajectory
+            Default: 1e-6
+        Delta0 : float
+            Minimal modification factor
+            Default: 2
         maxIter : int, optional
             Maximum number of optimization iterations
             Default: 100
@@ -244,10 +269,19 @@ class DDP(iLQR):
         If the algorithm is failing to converge, consider providing a different starting point.
         """
         super().__init__(
-            dynFun, costFun, x0, u, terminalCostFun=terminalCostFun, maxIter=maxIter, tol=tol, jittable=jittable
+            dynFun,
+            costFun,
+            x0,
+            u,
+            terminalCostFun=terminalCostFun,
+            muMin=muMin,
+            Delta0=Delta0,
+            maxIter=maxIter,
+            tol=tol,
+            jittable=jittable
         )
 
-        # Compute missing derivatives
+        # Compute additional derivatives
         fxx = jax.jacfwd(self.fx, 1)
         fux = jax.jacfwd(self.fu, 1)
         fuu = jax.jacfwd(self.fu, 2)
@@ -259,36 +293,16 @@ class DDP(iLQR):
         self.fux = fux
         self.fuu = fuu
 
-    def _backwardPass(self, x, u):
-        N, m = u.shape
-        n = x.shape[1]
+    def _computeQ(self, k, x, u, V, vVec, v, mu):
+        n = len(x)
+        fxk = self.fx(k, x, u)
+        fuk = self.fu(k, x, u)
+        Vw = V + mu * np.eye(n)
 
-        v = self.cf(x[N])
-        vVec = self.cfx(x[N])
-        V = self.cfxx(x[N])
-
-        lArr = np.zeros((N, m))
-        LArr = np.zeros((N, m, n))
-
-        for k in range(N - 1, -1, -1):
-            fxk = self.fx(k, x[k], u[k])
-            fuk = self.fu(k, x[k], u[k])
-
-            Q = self.c(k, x[k], u[k]) + v
-            Qx = self.cx(k, x[k], u[k]) + fxk.T @ vVec
-            Qu = self.cu(k, x[k], u[k]) + fuk.T @ vVec
-            Qxx = self.cxx(k, x[k], u[k]) + fxk.T @ V @ fxk + np.einsum('i,ijk', vVec, self.fxx(k, x[k], u[k]))
-            Quu = self.cuu(k, x[k], u[k]) + fuk.T @ V @ fuk + np.einsum('i,ijk', vVec, self.fuu(k, x[k], u[k]))
-            Qux = self.cux(k, x[k], u[k]) + fuk.T @ V @ fxk + np.einsum('i,ijk', vVec, self.fux(k, x[k], u[k]))
-
-            l = -np.linalg.solve(Quu, Qu)
-            L = -np.linalg.solve(Quu, Qux)
-
-            v = Q - 0.5 * l.T @ Quu @ l
-            vVec = Qx - L.T @ Quu @ l
-            V = Qxx - L.T @ Quu @ L
-
-            lArr[k] = l
-            LArr[k] = L
-
-        return LArr, lArr
+        Q = self.c(k, x, u) + v
+        Qx = self.cx(k, x, u) + fxk.T @ vVec
+        Qu = self.cu(k, x, u) + fuk.T @ vVec
+        Qxx = self.cxx(k, x, u) + fxk.T @ V @ fxk + np.einsum('i,ijk', vVec, self.fxx(k, x, u))
+        Quu = self.cuu(k, x, u) + fuk.T @ Vw @ fuk + np.einsum('i,ijk', vVec, self.fuu(k, x, u))
+        Qux = self.cux(k, x, u) + fuk.T @ Vw @ fxk + np.einsum('i,ijk', vVec, self.fux(k, x, u))
+        return Q, Qx, Qu, Qxx, Quu, Qux
