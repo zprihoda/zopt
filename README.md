@@ -5,7 +5,6 @@ A random collection of small projects
 ### All
 - Iterative LQR
     - iLQR + DDP improvements outlined in "Synthesis and Stabilization of Complex Behaviors through Online Trajectory Optimization"
-        - II.C: Improved Value Update
         - II.D: Improved Linear Search
         - II.F: Regularization Schedule
     - Consider adding fullOutput option to iLqr and DDP, so we can plot animations of trajectory over time?

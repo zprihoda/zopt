@@ -206,9 +206,9 @@ class iLQR():
             l = -np.linalg.solve(Quu, Qu)
             L = -np.linalg.solve(Quu, Qux)
 
-            v = Q - 0.5 * l.T @ Quu @ l
-            vVec = Qx - L.T @ Quu @ l
-            V = Qxx - L.T @ Quu @ L
+            v = l.T @ Qu + 0.5 * l.T @ Quu @ l
+            vVec = Qx + L.T @ Qu + Qux.T @ l + L.T @ Quu @ l
+            V = Qxx + L.T @ Qux + Qux.T @ L + L.T @ Quu @ L
 
             lArr[k] = l
             LArr[k] = L
