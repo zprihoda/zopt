@@ -152,11 +152,13 @@ class iLQR():
         LArr = np.zeros((N, m, n))
         lArr = np.zeros((N, m))
         converged = False
-        mu = self.muMin  # Initialize to minimum
+        mu = self.muMin
+        J = np.inf
 
         # Main iLQR loop
         for iter in range(self.maxIter):
-            x, u = self._forwardPass(u, xPrev, LArr, lArr, init=(iter == 0))
+            init = (iter == 0)
+            x, u, J = self._forwardPass(u, xPrev, LArr, lArr, init, J)
 
             # Check convergence Criteria
             delta = np.linalg.norm(x - xPrev)
@@ -172,22 +174,45 @@ class iLQR():
 
         return x, u, LArr
 
-    def _forwardPass(self, u, xPrev, LArr, lArr, init):
+    def _forwardPass(self, u, xPrev, LArr, lArr, init, J_prev):
         N, m = u.shape
         n = len(self.x0)
         x = np.zeros((N + 1, n))
         x[0] = self.x0
 
-        for k in range(N):
-            dx = x[k] - xPrev[k]
-            if init:
-                du = np.zeros(m)
-            else:
-                du = lArr[k] + LArr[k] @ dx
-            u[k] = u[k] + du
-            x[k + 1] = self.f(k, x[k], u[k])
+        alpha = 1
+        Qu = np.zeros((N,m))    # TODO: Pass in as argument
+        Quu = np.zeros((N,m,m))   # TODO: Pass in as argument
+        c1 = 0.8   # TODO: Make class parameter
+        maxLineSearchIter = 16  # TODO: Make class parameter
+        beta = 0.5  # TODO: Make class parameter
 
-        return x, u
+        converged = False
+        for lineSearchIter in range(maxLineSearchIter):
+            dJ_exp = alpha*np.sum([lArr[k].T @ Qu[k] for k in range(N)]) + \
+                alpha**2 / 2 * np.sum([lArr[k].T @ Quu[k] @ lArr[k] for k in range(N)])
+            J = 0
+            for k in range(N):
+                dx = x[k] - xPrev[k]
+                if init:
+                    du = np.zeros(m)
+                else:
+                    du = alpha*lArr[k] + LArr[k] @ dx
+                u[k] = u[k] + du
+                J += self.c(k,x[k],u[k])
+                x[k + 1] = self.f(k, x[k], u[k])
+            J += self.cf(x[-1])
+
+            if (J_prev - J)/dJ_exp > c1:
+                converged = True
+                break
+
+            alpha = alpha * beta
+
+        if not converged:
+            raise RuntimeError("lineSearch failed to converge!!!")
+
+        return x, u, J
 
     def _backwardPass(self, x, u, mu):
         N, m = u.shape
