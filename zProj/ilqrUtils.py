@@ -287,7 +287,22 @@ class iLQR():
 
 class DDP(iLQR):
 
-    def __init__(self, *args, **kwargs):
+    def __init__(
+        self,
+        dynFun: Callable[[int, np.ndarray, np.ndarray], np.ndarray],
+        costFun: Callable[[int, np.ndarray, np.ndarray], float],
+        x0: np.ndarray,
+        u: np.ndarray,
+        terminalCostFun: Callable[[np.ndarray], float] = None,
+        muMin: float = 1e-6,
+        delta0: float = 2,
+        maxIter: int = 100,
+        tol: float = 1e-6,
+        maxLineSearchIter: int = 16,
+        betaLineSearch: float = 0.5,
+        cLineSearch: float = 0.8,
+        jittable: bool = True
+    ):
         """
         Differential dynamic programming constructor
 
@@ -336,7 +351,21 @@ class DDP(iLQR):
         Different dynamic programming is very dependent on the initial guess.
         If the algorithm is failing to converge, consider providing a different starting point.
         """
-        super().__init__(*args, **kwargs)
+        super().__init__(
+            dynFun,
+            costFun,
+            x0,
+            u,
+            terminalCostFun=terminalCostFun,
+            muMin=muMin,
+            delta0=delta0,
+            maxIter=maxIter,
+            tol=tol,
+            maxLineSearchIter=maxLineSearchIter,
+            betaLineSearch=betaLineSearch,
+            cLineSearch=cLineSearch,
+            jittable=jittable
+        )
 
         # Compute additional derivatives
         fxx = jax.jacfwd(self.fx, 1)
