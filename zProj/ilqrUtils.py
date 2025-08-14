@@ -17,9 +17,9 @@ class iLQR():
         u: np.ndarray,
         terminalCostFun: Callable[[np.ndarray], float] = None,
         muMin: float = 1e-6,
-        Delta0: float = 2,
-        maxIter: int = 10,
-        tol: float = 1e-3,
+        delta0: float = 2,
+        maxIter: int = 100,
+        tol: float = 1e-6,
         maxLineSearchIter: int = 16,
         betaLineSearch: float = 0.5,
         cLineSearch: float = 0.8,
@@ -44,7 +44,7 @@ class iLQR():
         muMin : float
             Minimum cost regularization term, larger mu biases each step towards the current trajectory
             Default: 1e-6
-        Delta0 : float
+        delta0 : float
             Minimal modification factor
             Default: 2
         maxIter : int, optional
@@ -77,7 +77,7 @@ class iLQR():
         self.u = u
         self.tol = tol
         self.muMin = muMin
-        self.Delta0 = Delta0
+        self.delta0 = delta0
         self.maxIter = maxIter
         self.maxLineSearchIter = maxLineSearchIter
         self.betaLineSearch = betaLineSearch
@@ -171,6 +171,8 @@ class iLQR():
         lArr = np.zeros((N, m))
         converged = False
         mu = self.muMin
+        delta = self.delta0
+
         J = np.inf
         dJ_lin = -1
         dJ_quad = 0
@@ -181,16 +183,18 @@ class iLQR():
             x, u, J = self._forwardPass(u, xPrev, LArr, lArr, init, J, dJ_lin, dJ_quad)
 
             # Check convergence Criteria
-            delta = np.linalg.norm(x - xPrev)
-            if delta <= self.tol:
+            delta_x = np.linalg.norm(x - xPrev)
+            if delta_x <= self.tol:
                 converged = True
                 break
 
-            LArr, lArr, mu, dJ_lin, dJ_quad = self._backwardPass(x, u, mu)
+            LArr, lArr, mu, delta, dJ_lin, dJ_quad = self._backwardPass(x, u, mu, delta)
             xPrev = x.copy()
 
         if not converged:
-            warnings.warn("ILQR reached max iterations and did not converge. Most recent delta = {:.3g}".format(delta))
+            warnings.warn(
+                "ILQR reached max iterations and did not converge. Most recent delta = {:.3g}".format(delta_x)
+            )
 
         return x, u, LArr
 
@@ -225,42 +229,60 @@ class iLQR():
 
         if not converged:
             raise RuntimeError("lineSearch failed to converge!!!")
+
         return x, u, J
 
-    def _backwardPass(self, x, u, mu):
+    def _backwardPass(self, x, u, mu, delta):
         N, m = u.shape
         n = x.shape[1]
 
-        v = self.cf(x[N])
-        vVec = self.cfx(x[N])
-        V = self.cfxx(x[N])
+        cf = self.cf(x[N])
+        cfx = self.cfx(x[N])
+        cfxx = self.cfxx(x[N])
 
         lArr = np.zeros((N, m))
         LArr = np.zeros((N, m, n))
 
-        dJ_lin = 0
-        dJ_quad = 0
+        maxRegularizationIter = 100
+        for regIter in range(maxRegularizationIter):
+            v = cf
+            vVec = cfx
+            V = cfxx
+            dJ_lin = 0
+            dJ_quad = 0
+            converged = True
+            for k in range(N - 1, -1, -1):
+                Q, Qx, Qu, Qxx, Quu, Qux = self._computeQ(k, x[k], u[k], V, vVec, v, mu)
 
-        for k in range(N - 1, -1, -1):
-            Q, Qx, Qu, Qxx, Quu, Qux = self._computeQ(k, x[k], u[k], V, vVec, v, mu)
+                if not (np.all(np.linalg.eigvals(Quu) > 0)):
+                    delta = max(self.delta0, delta * self.delta0)
+                    mu = max(self.muMin, mu * delta)
+                    converged = False
+                    break
 
-            l = -np.linalg.solve(Quu, Qu)
-            L = -np.linalg.solve(Quu, Qux)
+                l = -np.linalg.solve(Quu, Qu)
+                L = -np.linalg.solve(Quu, Qux)
 
-            dv_lin = l.T @ Qu
-            dv_quad = 0.5 * l.T @ Quu @ l
+                dv_lin = l.T @ Qu
+                dv_quad = 0.5 * l.T @ Quu @ l
 
-            v = dv_lin + dv_quad
-            vVec = Qx + L.T @ Qu + Qux.T @ l + L.T @ Quu @ l
-            V = Qxx + L.T @ Qux + Qux.T @ L + L.T @ Quu @ L
+                v = dv_lin + dv_quad
+                vVec = Qx + L.T @ Qu + Qux.T @ l + L.T @ Quu @ l
+                V = Qxx + L.T @ Qux + Qux.T @ L + L.T @ Quu @ L
 
-            lArr[k] = l
-            LArr[k] = L
+                lArr[k] = l
+                LArr[k] = L
 
-            dJ_lin += dv_lin
-            dJ_quad += dv_quad
+                dJ_lin += dv_lin
+                dJ_quad += dv_quad
 
-        return LArr, lArr, mu, dJ_lin, dJ_quad
+            if converged:
+                delta = min(1 / self.delta0, delta / self.delta0)
+                mu1 = mu * delta
+                mu = mu1 if mu1 > self.muMin else 0
+                break
+
+        return LArr, lArr, mu, delta, dJ_lin, dJ_quad
 
 
 class DDP(iLQR):
@@ -285,7 +307,7 @@ class DDP(iLQR):
         muMin : float
             Minimum cost regularization term, larger mu biases each step towards the current trajectory
             Default: 1e-6
-        Delta0 : float
+        delta0 : float
             Minimal modification factor
             Default: 2
         maxIter : int, optional
@@ -329,15 +351,16 @@ class DDP(iLQR):
         self.fuu = fuu
 
     def _computeQ(self, k, x, u, V, vVec, v, mu):
-        n = len(x)
+        """Note: we diverge from the TET paper here. The modified regularization doesn't seem to work well with DDP"""
+        m = len(u)
         fxk = self.fx(k, x, u)
         fuk = self.fu(k, x, u)
-        Vw = V + mu * np.eye(n)
 
         Q = self.c(k, x, u) + v
         Qx = self.cx(k, x, u) + fxk.T @ vVec
         Qu = self.cu(k, x, u) + fuk.T @ vVec
         Qxx = self.cxx(k, x, u) + fxk.T @ V @ fxk + np.einsum('i,ijk', vVec, self.fxx(k, x, u))
-        Quu = self.cuu(k, x, u) + fuk.T @ Vw @ fuk + np.einsum('i,ijk', vVec, self.fuu(k, x, u))
-        Qux = self.cux(k, x, u) + fuk.T @ Vw @ fxk + np.einsum('i,ijk', vVec, self.fux(k, x, u))
+        Quu = self.cuu(k, x, u) + fuk.T @ V @ fuk + np.einsum('i,ijk', vVec, self.fuu(k, x, u))
+        Qux = self.cux(k, x, u) + fuk.T @ V @ fxk + np.einsum('i,ijk', vVec, self.fux(k, x, u))
+        Quu = Quu + mu * np.eye(m)
         return Q, Qx, Qu, Qxx, Quu, Qux

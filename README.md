@@ -4,8 +4,6 @@ A random collection of small projects
 ## TODO:
 ### All
 - Iterative LQR
-    - iLQR + DDP improvements outlined in "Synthesis and Stabilization of Complex Behaviors through Online Trajectory Optimization"
-        - II.F: Regularization Schedule
     - Performance improvements: Break out complex functions into jax sub functions (eg. forward pass)
     - Consider adding fullOutput option to iLqr and DDP, so we can plot animations of trajectory over time?
     - Implement an MPC like demo with iLQR?

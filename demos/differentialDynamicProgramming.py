@@ -34,7 +34,7 @@ def main():
     costFun = lambda k, x, u: cost(k, x, u, Q, R)
     terminalCostFun = None
     uGuess = np.repeat(uTrim[None, :], N, axis=0)
-    prob = DDP(dynFun, costFun, x0, uGuess, terminalCostFun=terminalCostFun, maxIter=200, tol=1e-6)
+    prob = DDP(dynFun, costFun, x0, uGuess, terminalCostFun=terminalCostFun)
     xTraj, uTraj, LArr = prob.solve()
 
     # Simple Simulation

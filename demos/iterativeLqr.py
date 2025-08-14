@@ -18,7 +18,7 @@ def controller(k, x, xTraj, uTraj, LArr):
 def main():
     # User inputs
     x0 = np.zeros(12)
-    x0[9:12] = np.array([10, 0, 0])
+    x0[9:12] = np.array([10, 10, 10])
     dt = 0.1
     N = 100
     Q = np.eye(12)
@@ -34,7 +34,7 @@ def main():
     costFun = lambda k, x, u: cost(k, x, u, Q, R)
     terminalCostFun = None
     uGuess = np.repeat(uTrim[None, :], N, axis=0)
-    prob = iLQR(dynFun, costFun, x0, uGuess, terminalCostFun=terminalCostFun, maxIter=200, tol=1e-4)
+    prob = iLQR(dynFun, costFun, x0, uGuess, terminalCostFun=terminalCostFun, tol=1e-3)
     xTraj, uTraj, LArr = prob.solve()
 
     # Simple Simulation
