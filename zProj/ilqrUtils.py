@@ -1,7 +1,9 @@
 import jax
+import jax.numpy as jnp
 import numpy as np
 import warnings
 
+from functools import partial
 from typing import Callable
 
 
@@ -22,8 +24,7 @@ class iLQR():
         tol: float = 1e-6,
         maxLineSearchIter: int = 16,
         betaLineSearch: float = 0.5,
-        cLineSearch: float = 0.8,
-        jittable: bool = True
+        cLineSearch: float = 0.8
     ):
         """
         Iterative LQR constructor
@@ -32,8 +33,10 @@ class iLQR():
         ---------
         dynFun : Callable[[int, np.ndarray, np.ndarray], np.ndarray]
             Discrete dynamics function of the form `xOut = f(k,x,u)`
+            Must be compatible with jax.jit
         costFun : Callable[[int, np.ndarray, np.ndarray], float]
             Discrete cost function of the form `j = c(k,x,u)`
+            Must be compatible with jax.jit
         x0 : np.ndarray
             Initial state, array of shape (n,)
         u : np.ndarray,
@@ -64,9 +67,6 @@ class iLQR():
             Line search cost degredation threshold
             Must be between 0 and 1
             Default: 0.8
-        jittable : bool, optional
-            Specifies whether the dynamics and cost functions are compatible with jax.jit
-            Default: True
 
         Notes
         -----
@@ -89,7 +89,6 @@ class iLQR():
         self.maxLineSearchIter = maxLineSearchIter
         self.betaLineSearch = betaLineSearch
         self.cLineSearch = cLineSearch
-        self.jittable = jittable
         self._computeDerivatives(
             dynFun, costFun, terminalCostFun
         )  # Also stores dynamics and cost functions as instance parameters
@@ -112,46 +111,45 @@ class iLQR():
             cfx = jax.jacrev(cf, 0)
             cfxx = jax.jacfwd(cfx, 0)
 
-        if self.jittable:
-            f = jax.jit(f)
-            c = jax.jit(c)
-            fx = jax.jit(fx)
-            fu = jax.jit(fu)
-            cx = jax.jit(cx)
-            cu = jax.jit(cu)
-            cxx = jax.jit(cxx)
-            cux = jax.jit(cux)
-            cuu = jax.jit(cuu)
-            cf = jax.jit(cf)
-            cfx = jax.jit(cfx)
-            cfxx = jax.jit(cfxx)
+        self.f = jax.jit(f)
+        self.c = jax.jit(c)
+        self.fx = jax.jit(fx)
+        self.fu = jax.jit(fu)
+        self.cx = jax.jit(cx)
+        self.cu = jax.jit(cu)
+        self.cxx = jax.jit(cxx)
+        self.cux = jax.jit(cux)
+        self.cuu = jax.jit(cuu)
+        self.cf = jax.jit(cf)
+        self.cfx = jax.jit(cfx)
+        self.cfxx = jax.jit(cfxx)
 
-        self.f = f
-        self.c = c
-        self.fx = fx
-        self.fu = fu
-        self.cx = cx
-        self.cu = cu
-        self.cxx = cxx
-        self.cux = cux
-        self.cuu = cuu
-        self.cf = cf
-        self.cfx = cfx
-        self.cfxx = cfxx
-
-    def _computeQ(self, k, x, u, V, vVec, v, mu):
+    @partial(jax.jit, static_argnames=['self'])
+    def _computeQ(self, k, x, u, V, vVec, mu):
         n = len(x)
         fxk = self.fx(k, x, u)
         fuk = self.fu(k, x, u)
-        Vw = V + mu * np.eye(n)
+        Vw = V + mu * jnp.eye(n)
 
-        Q = self.c(k, x, u) + v
         Qx = self.cx(k, x, u) + fxk.T @ vVec
         Qu = self.cu(k, x, u) + fuk.T @ vVec
         Qxx = self.cxx(k, x, u) + fxk.T @ V @ fxk
         Quu = self.cuu(k, x, u) + fuk.T @ Vw @ fuk
         Qux = self.cux(k, x, u) + fuk.T @ Vw @ fxk
-        return Q, Qx, Qu, Qxx, Quu, Qux
+        return Qx, Qu, Qxx, Quu, Qux
+
+    @partial(jax.jit, static_argnames=['self'])
+    def _backwardPassUpdate(self, Qx, Qu, Qxx, Quu, Qux):
+        l = -jnp.linalg.solve(Quu, Qu)
+        L = -jnp.linalg.solve(Quu, Qux)
+
+        dv_lin = l.T @ Qu
+        dv_quad = 0.5 * l.T @ Quu @ l
+
+        v = dv_lin + dv_quad
+        vVec = Qx + L.T @ Qu + Qux.T @ l + L.T @ Quu @ l
+        V = Qxx + L.T @ Qux + Qux.T @ L + L.T @ Quu @ L
+        return l, L, dv_lin, dv_quad, v, vVec, V
 
     def solve(self) -> tuple[np.ndarray, np.ndarray, Callable[[int, np.ndarray], np.ndarray]]:
         """
@@ -259,23 +257,15 @@ class iLQR():
             dJ_quad = 0
             converged = True
             for k in range(N - 1, -1, -1):
-                Q, Qx, Qu, Qxx, Quu, Qux = self._computeQ(k, x[k], u[k], V, vVec, v, mu)
+                Qx, Qu, Qxx, Quu, Qux = self._computeQ(k, x[k], u[k], V, vVec, mu)
 
-                if not (np.all(np.linalg.eigvals(Quu) > 0)):
+                if not (jnp.all(jnp.linalg.eigvals(Quu) > 0)):
                     delta = max(self.delta0, delta * self.delta0)
                     mu = max(self.muMin, mu * delta)
                     converged = False
                     break
 
-                l = -np.linalg.solve(Quu, Qu)
-                L = -np.linalg.solve(Quu, Qux)
-
-                dv_lin = l.T @ Qu
-                dv_quad = 0.5 * l.T @ Quu @ l
-
-                v = dv_lin + dv_quad
-                vVec = Qx + L.T @ Qu + Qux.T @ l + L.T @ Quu @ l
-                V = Qxx + L.T @ Qux + Qux.T @ L + L.T @ Quu @ L
+                l, L, dv_lin, dv_quad, v, vVec, V = self._backwardPassUpdate(Qx, Qu, Qxx, Quu, Qux)
 
                 lArr[k] = l
                 LArr[k] = L
@@ -307,8 +297,7 @@ class DDP(iLQR):
         tol: float = 1e-6,
         maxLineSearchIter: int = 16,
         betaLineSearch: float = 0.5,
-        cLineSearch: float = 0.8,
-        jittable: bool = True
+        cLineSearch: float = 0.8
     ):
         """
         Differential dynamic programming constructor
@@ -317,8 +306,10 @@ class DDP(iLQR):
         ---------
         dynFun : Callable[[int, np.ndarray, np.ndarray], np.ndarray]
             Discrete dynamics function of the form `xOut = f(k,x,u)`
+            Must be compatible with jax.jit
         costFun : Callable[[int, np.ndarray, np.ndarray], float]
             Discrete cost function of the form `j = c(k,x,u)`
+            Must be compatible with jax.jit
         x0 : np.ndarray
             Initial state, array of shape (n,)
         u : np.ndarray,
@@ -349,9 +340,6 @@ class DDP(iLQR):
             Line search cost degredation threshold
             Must be between 0 and 1
             Default: 0.8
-        jittable : bool, optional
-            Specifies whether the dynamics and cost functions are compatible with jax.jit
-            Default: True
 
         Notes
         -----
@@ -378,32 +366,27 @@ class DDP(iLQR):
             maxLineSearchIter=maxLineSearchIter,
             betaLineSearch=betaLineSearch,
             cLineSearch=cLineSearch,
-            jittable=jittable
         )
 
         # Compute additional derivatives
         fxx = jax.jacfwd(self.fx, 1)
         fux = jax.jacfwd(self.fu, 1)
         fuu = jax.jacfwd(self.fu, 2)
-        if self.jittable:
-            fxx = jax.jit(fxx)
-            fux = jax.jit(fux)
-            fuu = jax.jit(fuu)
-        self.fxx = fxx
-        self.fux = fux
-        self.fuu = fuu
+        self.fxx = jax.jit(fxx)
+        self.fux = jax.jit(fux)
+        self.fuu = jax.jit(fuu)
 
-    def _computeQ(self, k, x, u, V, vVec, v, mu):
+    @partial(jax.jit, static_argnames=['self'])
+    def _computeQ(self, k, x, u, V, vVec, mu):
         """Note: we diverge from the TET paper here. The modified regularization doesn't seem to work well with DDP"""
         m = len(u)
         fxk = self.fx(k, x, u)
         fuk = self.fu(k, x, u)
 
-        Q = self.c(k, x, u) + v
         Qx = self.cx(k, x, u) + fxk.T @ vVec
         Qu = self.cu(k, x, u) + fuk.T @ vVec
-        Qxx = self.cxx(k, x, u) + fxk.T @ V @ fxk + np.einsum('i,ijk', vVec, self.fxx(k, x, u))
-        Quu = self.cuu(k, x, u) + fuk.T @ V @ fuk + np.einsum('i,ijk', vVec, self.fuu(k, x, u))
-        Qux = self.cux(k, x, u) + fuk.T @ V @ fxk + np.einsum('i,ijk', vVec, self.fux(k, x, u))
-        Quu = Quu + mu * np.eye(m)
-        return Q, Qx, Qu, Qxx, Quu, Qux
+        Qxx = self.cxx(k, x, u) + fxk.T @ V @ fxk + jnp.einsum('i,ijk', vVec, self.fxx(k, x, u))
+        Quu = self.cuu(k, x, u) + fuk.T @ V @ fuk + jnp.einsum('i,ijk', vVec, self.fuu(k, x, u))
+        Qux = self.cux(k, x, u) + fuk.T @ V @ fxk + jnp.einsum('i,ijk', vVec, self.fux(k, x, u))
+        Quu = Quu + mu * jnp.eye(m)
+        return Qx, Qu, Qxx, Quu, Qux

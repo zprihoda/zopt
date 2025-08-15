@@ -1,3 +1,4 @@
+import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -36,6 +37,9 @@ def main():
     uGuess = np.repeat(uTrim[None, :], N, axis=0)
     prob = DDP(dynFun, costFun, x0, uGuess, terminalCostFun=terminalCostFun)
     xTraj, uTraj, LArr = prob.solve()
+    xTraj = jnp.asarray(xTraj)
+    uTraj = jnp.asarray(uTraj)
+    LArr = jnp.asarray(LArr)
 
     # Simple Simulation
     xCtrl0 = np.array([])
@@ -46,7 +50,6 @@ def main():
         xCtrl0,
         dt=dt,
         name="Controller",
-        jittable=False
     )
     t_span = (0, tArr[-1])
     sim = Simulator([controllerBlock, dynamicsBlock], t_span)
