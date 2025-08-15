@@ -3,16 +3,17 @@ A random collection of small projects
 
 ## TODO:
 ### All
-- Short Tasks:
-    - Create controllers module
-        - Move proportionalFeedbackController from lqrUtils to controllers
-        - Add integral controller from integralLqrControl demo.
-        - Create/move tests
 - Tasks:
     - Write quadcopter animation
     - Indirect methods (port / cleanup Kirk algorithms)
     - Direct Methods
     - MPC
+
+- Short Tasks:
+    - Create controllers module?
+        - Move proportionalFeedbackController from lqrUtils to controllers
+        - Add integral controller from integralLqrControl demo.
+        - Create/move tests
 
 - Simulator:
     - Add support for multi-rate systems
