@@ -3,21 +3,9 @@ import jax.numpy as jnp
 import numpy as np
 import warnings
 
-from functools import partial
 from typing import Callable
+from zProj.jaxUtils import maybeJit, maybeJitCls
 
-def maybeJitCls(func):
-    """Jits function if self.jittable is true"""
-    def _func(self, *args, **kwargs):
-        if self.jittable:
-            return jax.jit(func, static_argnames=['self'])(self, *args, **kwargs)
-        else:
-            return func(self, *args, **kwargs)
-    return _func
-
-def maybeJit(func, cond):
-    """Jits a function if cond is true"""
-    return jax.jit(func) if cond else func
 
 ## iLQR and DDP
 class iLQR():
@@ -126,17 +114,17 @@ class iLQR():
             cfx = jax.jacrev(cf, 0)
             cfxx = jax.jacfwd(cfx, 0)
 
-        self.f    = maybeJit(f, self.jittable)
-        self.c    = maybeJit(c, self.jittable)
-        self.fx   = maybeJit(fx, self.jittable)
-        self.fu   = maybeJit(fu, self.jittable)
-        self.cx   = maybeJit(cx, self.jittable)
-        self.cu   = maybeJit(cu, self.jittable)
-        self.cxx  = maybeJit(cxx, self.jittable)
-        self.cux  = maybeJit(cux, self.jittable)
-        self.cuu  = maybeJit(cuu, self.jittable)
-        self.cf   = maybeJit(cf, self.jittable)
-        self.cfx  = maybeJit(cfx, self.jittable)
+        self.f = maybeJit(f, self.jittable)
+        self.c = maybeJit(c, self.jittable)
+        self.fx = maybeJit(fx, self.jittable)
+        self.fu = maybeJit(fu, self.jittable)
+        self.cx = maybeJit(cx, self.jittable)
+        self.cu = maybeJit(cu, self.jittable)
+        self.cxx = maybeJit(cxx, self.jittable)
+        self.cux = maybeJit(cux, self.jittable)
+        self.cuu = maybeJit(cuu, self.jittable)
+        self.cf = maybeJit(cf, self.jittable)
+        self.cfx = maybeJit(cfx, self.jittable)
         self.cfxx = maybeJit(cfxx, self.jittable)
 
     @maybeJitCls
@@ -394,7 +382,6 @@ class DDP(iLQR):
         self.fxx = maybeJit(fxx, self.jittable)
         self.fux = maybeJit(fux, self.jittable)
         self.fuu = maybeJit(fuu, self.jittable)
-
 
     @maybeJitCls
     def _computeQ(self, k, x, u, V, vVec, mu):
