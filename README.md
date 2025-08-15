@@ -3,10 +3,6 @@ A random collection of small projects
 
 ## TODO:
 ### All
-- Iterative LQR
-    - Performance improvements: Break out complex functions into jax sub functions (eg. forward pass)
-    - Consider adding fullOutput option to iLqr and DDP, so we can plot animations of trajectory over time?
-    - Implement an MPC like demo with iLQR?
 - Short Tasks:
     - Create controllers module
         - Move proportionalFeedbackController from lqrUtils to controllers
