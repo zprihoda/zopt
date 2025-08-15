@@ -70,8 +70,15 @@ class iLQR():
 
         Notes
         -----
-        Iterative lqr is very dependent on the initial guess.
-        If the algorithm is failing to converge, consider providing a different starting point.
+        - Iterative lqr is very dependent on the initial guess.
+          If the algorithm is failing to converge, consider providing a different starting point.
+        - Implementation based on [TET12]
+
+        References
+        ----------
+        - [TET12]: Yuval Tassa, Tom Erez, and Emanuel Todorov. Synthesis and stabilization of complex behaviors through
+          online trajectory optimization. In IEEE International Conference on Intelligent Robots and Systems (IROS),
+          2012.
         """
         self.x0 = x0
         self.u = u
@@ -348,8 +355,15 @@ class DDP(iLQR):
 
         Notes
         -----
-        Different dynamic programming is very dependent on the initial guess.
-        If the algorithm is failing to converge, consider providing a different starting point.
+        - Different dynamic programming is very dependent on the initial guess.
+          If the algorithm is failing to converge, consider providing a different starting point.
+        - Implementation based on [TET12]
+
+        References
+        ----------
+        - [TET12]: Yuval Tassa, Tom Erez, and Emanuel Todorov. Synthesis and stabilization of complex behaviors through
+          online trajectory optimization. In IEEE International Conference on Intelligent Robots and Systems (IROS),
+          2012.
         """
         super().__init__(
             dynFun,

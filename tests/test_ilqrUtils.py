@@ -43,7 +43,7 @@ def test_ddpDefaultInit():
     assert prob.cf(x0) == 5  # check that terminal cost is computed correctly
 
 
-def test_dppSolve():
+def test_ddpSolve():
     """Check that solve runs without error"""
 
     x0 = np.array([1, 2])
