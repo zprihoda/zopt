@@ -3,8 +3,8 @@ import jax.numpy as jnp
 import numpy as np
 import warnings
 
-from functools import partial
 from typing import Callable
+from zProj.jaxUtils import maybeJit, maybeJitCls
 
 
 ## iLQR and DDP
@@ -24,7 +24,8 @@ class iLQR():
         tol: float = 1e-6,
         maxLineSearchIter: int = 16,
         betaLineSearch: float = 0.5,
-        cLineSearch: float = 0.8
+        cLineSearch: float = 0.8,
+        jittable: bool = True
     ):
         """
         Iterative LQR constructor
@@ -33,10 +34,8 @@ class iLQR():
         ---------
         dynFun : Callable[[int, np.ndarray, np.ndarray], np.ndarray]
             Discrete dynamics function of the form `xOut = f(k,x,u)`
-            Must be compatible with jax.jit
         costFun : Callable[[int, np.ndarray, np.ndarray], float]
             Discrete cost function of the form `j = c(k,x,u)`
-            Must be compatible with jax.jit
         x0 : np.ndarray
             Initial state, array of shape (n,)
         u : np.ndarray,
@@ -67,6 +66,9 @@ class iLQR():
             Line search cost degredation threshold
             Must be between 0 and 1
             Default: 0.8
+        jittable : bool, optional
+            Specifies whether the dynamics and cost functions are compatible with jax.jit
+            Default: True
 
         Notes
         -----
@@ -89,6 +91,7 @@ class iLQR():
         self.maxLineSearchIter = maxLineSearchIter
         self.betaLineSearch = betaLineSearch
         self.cLineSearch = cLineSearch
+        self.jittable = jittable
         self._computeDerivatives(
             dynFun, costFun, terminalCostFun
         )  # Also stores dynamics and cost functions as instance parameters
@@ -111,20 +114,20 @@ class iLQR():
             cfx = jax.jacrev(cf, 0)
             cfxx = jax.jacfwd(cfx, 0)
 
-        self.f = jax.jit(f)
-        self.c = jax.jit(c)
-        self.fx = jax.jit(fx)
-        self.fu = jax.jit(fu)
-        self.cx = jax.jit(cx)
-        self.cu = jax.jit(cu)
-        self.cxx = jax.jit(cxx)
-        self.cux = jax.jit(cux)
-        self.cuu = jax.jit(cuu)
-        self.cf = jax.jit(cf)
-        self.cfx = jax.jit(cfx)
-        self.cfxx = jax.jit(cfxx)
+        self.f = maybeJit(f, self.jittable)
+        self.c = maybeJit(c, self.jittable)
+        self.fx = maybeJit(fx, self.jittable)
+        self.fu = maybeJit(fu, self.jittable)
+        self.cx = maybeJit(cx, self.jittable)
+        self.cu = maybeJit(cu, self.jittable)
+        self.cxx = maybeJit(cxx, self.jittable)
+        self.cux = maybeJit(cux, self.jittable)
+        self.cuu = maybeJit(cuu, self.jittable)
+        self.cf = maybeJit(cf, self.jittable)
+        self.cfx = maybeJit(cfx, self.jittable)
+        self.cfxx = maybeJit(cfxx, self.jittable)
 
-    @partial(jax.jit, static_argnames=['self'])
+    @maybeJitCls
     def _computeQ(self, k, x, u, V, vVec, mu):
         n = len(x)
         fxk = self.fx(k, x, u)
@@ -138,7 +141,7 @@ class iLQR():
         Qux = self.cux(k, x, u) + fuk.T @ Vw @ fxk
         return Qx, Qu, Qxx, Quu, Qux
 
-    @partial(jax.jit, static_argnames=['self'])
+    @maybeJitCls
     def _backwardPassUpdate(self, Qx, Qu, Qxx, Quu, Qux):
         l = -jnp.linalg.solve(Quu, Qu)
         L = -jnp.linalg.solve(Quu, Qux)
@@ -146,10 +149,9 @@ class iLQR():
         dv_lin = l.T @ Qu
         dv_quad = 0.5 * l.T @ Quu @ l
 
-        v = dv_lin + dv_quad
         vVec = Qx + L.T @ Qu + Qux.T @ l + L.T @ Quu @ l
         V = Qxx + L.T @ Qux + Qux.T @ L + L.T @ Quu @ L
-        return l, L, dv_lin, dv_quad, v, vVec, V
+        return l, L, dv_lin, dv_quad, vVec, V
 
     def solve(self) -> tuple[np.ndarray, np.ndarray, Callable[[int, np.ndarray], np.ndarray]]:
         """
@@ -250,7 +252,6 @@ class iLQR():
 
         maxRegularizationIter = 100
         for regIter in range(maxRegularizationIter):
-            v = cf
             vVec = cfx
             V = cfxx
             dJ_lin = 0
@@ -265,7 +266,7 @@ class iLQR():
                     converged = False
                     break
 
-                l, L, dv_lin, dv_quad, v, vVec, V = self._backwardPassUpdate(Qx, Qu, Qxx, Quu, Qux)
+                l, L, dv_lin, dv_quad, vVec, V = self._backwardPassUpdate(Qx, Qu, Qxx, Quu, Qux)
 
                 lArr[k] = l
                 LArr[k] = L
@@ -297,7 +298,8 @@ class DDP(iLQR):
         tol: float = 1e-6,
         maxLineSearchIter: int = 16,
         betaLineSearch: float = 0.5,
-        cLineSearch: float = 0.8
+        cLineSearch: float = 0.8,
+        jittable: bool = True
     ):
         """
         Differential dynamic programming constructor
@@ -306,10 +308,8 @@ class DDP(iLQR):
         ---------
         dynFun : Callable[[int, np.ndarray, np.ndarray], np.ndarray]
             Discrete dynamics function of the form `xOut = f(k,x,u)`
-            Must be compatible with jax.jit
         costFun : Callable[[int, np.ndarray, np.ndarray], float]
             Discrete cost function of the form `j = c(k,x,u)`
-            Must be compatible with jax.jit
         x0 : np.ndarray
             Initial state, array of shape (n,)
         u : np.ndarray,
@@ -340,6 +340,9 @@ class DDP(iLQR):
             Line search cost degredation threshold
             Must be between 0 and 1
             Default: 0.8
+        jittable : bool, optional
+            Specifies whether the dynamics and cost functions are compatible with jax.jit
+            Default: True
 
         Notes
         -----
@@ -366,17 +369,19 @@ class DDP(iLQR):
             maxLineSearchIter=maxLineSearchIter,
             betaLineSearch=betaLineSearch,
             cLineSearch=cLineSearch,
+            jittable=jittable
         )
 
         # Compute additional derivatives
         fxx = jax.jacfwd(self.fx, 1)
         fux = jax.jacfwd(self.fu, 1)
         fuu = jax.jacfwd(self.fu, 2)
-        self.fxx = jax.jit(fxx)
-        self.fux = jax.jit(fux)
-        self.fuu = jax.jit(fuu)
 
-    @partial(jax.jit, static_argnames=['self'])
+        self.fxx = maybeJit(fxx, self.jittable)
+        self.fux = maybeJit(fux, self.jittable)
+        self.fuu = maybeJit(fuu, self.jittable)
+
+    @maybeJitCls
     def _computeQ(self, k, x, u, V, vVec, mu):
         """Note: we diverge from the TET paper here. The modified regularization doesn't seem to work well with DDP"""
         m = len(u)

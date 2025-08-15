@@ -22,3 +22,20 @@ def interpMapped(x: jnp.ndarray, xp: jnp.ndarray, fp: float, left=None, right=No
         yq : (n,) array of interpolated vector values at xq
     """
     return jnp.interp(x, xp, fp, left=left, right=right, period=period)
+
+
+def maybeJitCls(func):
+    """Class method decorator: Jit function if self.jittable is true"""
+
+    def _func(self, *args, **kwargs):
+        if self.jittable:
+            return jax.jit(func, static_argnames=['self'])(self, *args, **kwargs)
+        else:
+            return func(self, *args, **kwargs)
+
+    return _func
+
+
+def maybeJit(func, cond):
+    """Jit a function if cond is true"""
+    return jax.jit(func) if cond else func
