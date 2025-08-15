@@ -149,10 +149,9 @@ class iLQR():
         dv_lin = l.T @ Qu
         dv_quad = 0.5 * l.T @ Quu @ l
 
-        v = dv_lin + dv_quad
         vVec = Qx + L.T @ Qu + Qux.T @ l + L.T @ Quu @ l
         V = Qxx + L.T @ Qux + Qux.T @ L + L.T @ Quu @ L
-        return l, L, dv_lin, dv_quad, v, vVec, V
+        return l, L, dv_lin, dv_quad, vVec, V
 
     def solve(self) -> tuple[np.ndarray, np.ndarray, Callable[[int, np.ndarray], np.ndarray]]:
         """
@@ -253,7 +252,6 @@ class iLQR():
 
         maxRegularizationIter = 100
         for regIter in range(maxRegularizationIter):
-            v = cf
             vVec = cfx
             V = cfxx
             dJ_lin = 0
@@ -268,7 +266,7 @@ class iLQR():
                     converged = False
                     break
 
-                l, L, dv_lin, dv_quad, v, vVec, V = self._backwardPassUpdate(Qx, Qu, Qxx, Quu, Qux)
+                l, L, dv_lin, dv_quad, vVec, V = self._backwardPassUpdate(Qx, Qu, Qxx, Quu, Qux)
 
                 lArr[k] = l
                 LArr[k] = L
