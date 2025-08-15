@@ -3,9 +3,6 @@ A random collection of small projects
 
 ## TODO:
 ### All
-- Iterative LQR
-    - Add iterative LQR function + tests + demo
-    - Add differential dynamic programming function + tests + demo
 - Short Tasks:
     - Create controllers module
         - Move proportionalFeedbackController from lqrUtils to controllers
@@ -13,6 +10,10 @@ A random collection of small projects
         - Create/move tests
 - Tasks:
     - Write quadcopter animation
+    - Indirect methods (port / cleanup Kirk algorithms)
+    - Direct Methods
+    - MPC
+
 - Simulator:
     - Add support for multi-rate systems
     - Generalize simBlocks + add signal map
