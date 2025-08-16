@@ -4,28 +4,9 @@ A random collection of small projects
 ## TODO:
 ### All
 - Animation
-    - Refactor to be easier to update
-    - Break functions into: data generation, object creation, eg. for the body:
-        - verts = getBodyVerts(x, ...): Get the vertices for the body object
-        - obj = createBodyObj(verts): Creates body object
-        - updateBodyObj(verts): To update object (if needed)
-    ```
-    Update poly3d collection (body, arms):
-        poly = Poly3DCollection(verts, ...)   # create intitial object
-        poly.set_verts(verts_new)
-    Update line (heading vector)
-        line, = ax.plot(...)
-        line.set_xdata(new_x)
-        line.set_ydata(new_y)
-        line.set_zdata(new_z)
-    Update surface
-        Not possible, need to delete and recreate surface...
-        Alternate: Change surface to Poly3DCollection
-    ```
-    - Animate!!!
     - Plot options:
         - Add 2d traces (xy, yz, zx traces)
-        - Auto-scale axis limits based on data
+    - Add animation to one of the demos (iLQR?)
 
 - Tasks:
     - Indirect methods (port / cleanup Kirk algorithms)
