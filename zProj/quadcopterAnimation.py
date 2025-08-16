@@ -59,14 +59,14 @@ class QuadcopterAnimation():
         # TODO: Add top and bottom rotor surface?
         return None
 
-    def _getBody(self, x, R):
-        center = x[9:12]
+    def _getBody(self, x, R_body2enu, R_ned2enu):
+        center = R_ned2enu @ x[9:12]
         body = self._getRectangularPrism(
             center,
             self.bodyWidth,
             self.bodyWidth,
             self.bodyHeight,
-            R=R,
+            R=R_body2enu,
             facecolors="cyan",
             linewidths=1,
             edgecolors='k',
@@ -74,12 +74,12 @@ class QuadcopterAnimation():
         )
         return body
 
-    def _getArms(self, x, R):
+    def _getArms(self, x, R_body2enu, R_ned2enu):
         th = np.pi / 4
-        R_body2arm = np.array([[np.cos(th), -np.sin(th), 0], [np.sin(th), np.cos(th), 0], [0, 0, 1]])
-        R_arm = R @ R_body2arm
-        center_body = x[9:12]
-        center1 = center_body + R_arm / 2 @ (self.armLength * np.array([1, 0, 0]))
+        R_arm2body = np.array([[np.cos(th), -np.sin(th), 0], [np.sin(th), np.cos(th), 0], [0, 0, 1]])
+        R_arm = R_body2enu @ R_arm2body
+        center_enu = R_ned2enu @ x[9:12]
+        center1 = center_enu + R_arm / 2 @ (self.armLength * np.array([1, 0, 0]))
         arm1 = self._getRectangularPrism(
             center1,
             self.armLength,
@@ -90,7 +90,7 @@ class QuadcopterAnimation():
             linewidths=1,
             edgecolors='k'
         )
-        center2 = center_body + R_arm / 2 @ (self.armLength * np.array([-1, 0, 0]))
+        center2 = center_enu + R_arm / 2 @ (self.armLength * np.array([-1, 0, 0]))
         arm2 = self._getRectangularPrism(
             center2,
             self.armLength,
@@ -101,7 +101,7 @@ class QuadcopterAnimation():
             linewidths=1,
             edgecolors='k'
         )
-        center3 = center_body + R_arm / 2 @ (self.armLength * np.array([0, 1, 0]))
+        center3 = center_enu + R_arm / 2 @ (self.armLength * np.array([0, 1, 0]))
         arm3 = self._getRectangularPrism(
             center3,
             self.armWidth,
@@ -112,7 +112,7 @@ class QuadcopterAnimation():
             linewidths=1,
             edgecolors='k'
         )
-        center4 = center_body + R_arm / 2 @ (self.armLength * np.array([0, -1, 0]))
+        center4 = center_enu + R_arm / 2 @ (self.armLength * np.array([0, -1, 0]))
         arm4 = self._getRectangularPrism(
             center4,
             self.armWidth,
@@ -125,46 +125,58 @@ class QuadcopterAnimation():
         )
         return [arm1, arm2, arm3, arm4]
 
-    def _addRotors(self, ax, x, R):
-        center_body = x[9:12]
-        center1 = center_body + R @ (
+    def _addRotors(self, ax, x, R_body2enu, R_ned2enu):
+        center_enu = R_ned2enu @ x[9:12]
+        center1 = center_enu + R_body2enu @ (
             self.armLength * np.array([1 / np.sqrt(2), 1 / np.sqrt(2), 0]) -
             np.array([0, 0, self.armWidth / 2 + self.rotorHeight / 2])
         )
-        center2 = center_body + R @ (
+        center2 = center_enu + R_body2enu @ (
             self.armLength * np.array([1 / np.sqrt(2), -1 / np.sqrt(2), 0]) -
             np.array([0, 0, self.armWidth / 2 + self.rotorHeight / 2])
         )
-        center3 = center_body + R @ (
+        center3 = center_enu + R_body2enu @ (
             self.armLength * np.array([-1 / np.sqrt(2), -1 / np.sqrt(2), 0]) -
             np.array([0, 0, self.armWidth / 2 + self.rotorHeight / 2])
         )
-        center4 = center_body + R @ (
+        center4 = center_enu + R_body2enu @ (
             self.armLength * np.array([-1 / np.sqrt(2), 1 / np.sqrt(2), 0]) -
             np.array([0, 0, self.armWidth / 2 + self.rotorHeight / 2])
         )
         self._plotCylinder(
-            ax, center1, self.rotorRadius, self.rotorHeight, R=R, color="red", linewidths=1, edgecolors='k'
+            ax, center1, self.rotorRadius, self.rotorHeight, R=R_body2enu, color="red", linewidths=1, edgecolors='k'
         )
         self._plotCylinder(
-            ax, center2, self.rotorRadius, self.rotorHeight, R=R, color="red", linewidths=1, edgecolors='k'
+            ax, center2, self.rotorRadius, self.rotorHeight, R=R_body2enu, color="red", linewidths=1, edgecolors='k'
         )
         self._plotCylinder(
-            ax, center3, self.rotorRadius, self.rotorHeight, R=R, color="red", linewidths=1, edgecolors='k'
+            ax, center3, self.rotorRadius, self.rotorHeight, R=R_body2enu, color="red", linewidths=1, edgecolors='k'
         )
         self._plotCylinder(
-            ax, center4, self.rotorRadius, self.rotorHeight, R=R, color="red", linewidths=1, edgecolors='k'
+            ax, center4, self.rotorRadius, self.rotorHeight, R=R_body2enu, color="red", linewidths=1, edgecolors='k'
         )
 
     def _initializePlot(self, x0: np.ndarray):
-        x0[11] = -x0[11]  # Convert from down position to altitude
+
+        pos_ned = x0[9:12]
         phi, theta, psi = x0[6:9]
         ac = Quadcopter()
-        R = np.array(ac._bodyToInertialRotationMatrix(phi, theta, psi))
-        R[2, :] = -R[2, :]  # Reflect from NED to NEU
 
-        body = self._getBody(x0, R)
-        arms = self._getArms(x0, R)
+        # Get body to ENU rotation matrix
+        R_body2ned = np.array(ac._bodyToInertialRotationMatrix(phi, theta, psi))
+        R_ned2enu = np.array([[0,1,0],[1,0,0],[0,0,-1]])
+        R_body2enu = R_ned2enu @ R_body2ned
+
+        pos_enu = R_ned2enu @ pos_ned
+
+        body = self._getBody(x0, R_body2enu, R_ned2enu)
+        arms = self._getArms(x0, R_body2enu, R_ned2enu)
+
+        # Make heading marker
+        x_body = 2 * self.bodyWidth/2 * np.array([1,0,0])
+        x_enu = R_body2enu @ x_body
+        vecStart = pos_enu + R_body2enu @ np.array([0,0,-self.bodyHeight/2])
+        vecEnd = vecStart + x_enu
 
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
@@ -173,7 +185,8 @@ class QuadcopterAnimation():
         ax.add_collection(arms[2])
         ax.add_collection(arms[3])
         ax.add_collection(body)
-        self._addRotors(ax, x0, R)
+        self._addRotors(ax, x0, R_body2enu, R_ned2enu)
+        ax.plot(*zip(vecStart, vecEnd), "r-")
         return fig, ax
 
     def _updatePlot(self, k, objs):
@@ -187,17 +200,16 @@ class QuadcopterAnimation():
 def main():
     t = [0, 1]
     x = np.zeros((2, 12))
-    x[0, 9:12] = np.array([0, 0, 0])
-    x[0, 6:9] = np.array([np.deg2rad(30), 0, 0])
+    x[0, 9:12] = np.array([0, 0, 0])    # Position NED
+    x[0, 6:9] = np.array([0, 0, 0])     # phi,theta,psi
     anim = QuadcopterAnimation(t, x)
     fig, ax = anim._initializePlot(x[0])
     ax.set_xlim([-1, 1])
     ax.set_ylim([-1, 1])
     ax.set_zlim([-1, 1])
-    ax.set_xlabel("N (m)")
-    ax.set_ylabel("E (m)")
-    ax.set_zlabel("h (m)")
-    ax.view_init(azim=0, elev=0)
+    ax.set_xlabel("E (m)")
+    ax.set_ylabel("N (m)")
+    ax.set_zlabel("U (m)")
     plt.show()
 
 
