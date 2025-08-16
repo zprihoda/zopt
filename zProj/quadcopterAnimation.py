@@ -23,6 +23,27 @@ def getRectangularPrismVertices(center: np.ndarray, dx: float, dy: float, dz: fl
     return faces
 
 
+def getCylinderVertices(
+    center: np.ndarray, r: float, dz: float, R: np.ndarray = np.eye(3), N: int = 20, includeBases: bool = False
+):
+    """Get vertices for a cylinder"""
+    theta = np.linspace(0, 2 * np.pi, N)
+    z = np.array([-dz / 2, dz / 2])
+    z, theta = np.meshgrid(z, theta)
+
+    x = r * np.cos(theta)
+    y = r * np.sin(theta)
+
+    points = center[None, :, None] + R @ np.stack([x, y, z], axis=1)
+    faces = [
+        [points[i - 1, :, 0], points[i, :, 0], points[i, :, 1], points[i - 1, :, 1]] for i in range(N)
+    ]  # cylinder edges
+    if includeBases:
+        faces += [[points[i, :, 0] for i in range(N)]]  # bottom base
+        faces += [[points[i, :, 1] for i in range(N)]]  # top base
+    return faces
+
+
 class QuadcopterAnimation():
 
     def __init__(self, tTraj: np.ndarray, xTraj: np.ndarray):
@@ -48,18 +69,6 @@ class QuadcopterAnimation():
 
         self.ac = Quadcopter()  # For body to inertial rotation matrix
 
-    def _plotCylinder(self, ax, center, r, dz, R=np.eye(3), N=50, **kwargs):
-        theta = np.linspace(0, 2 * np.pi, N)
-        z = np.array([-dz / 2, dz / 2])
-        theta, z = np.meshgrid(theta, z)
-        x = r * np.cos(theta)
-        y = r * np.sin(theta)
-        points = (center[None, :, None] + (R @ np.stack([x, y, z]).transpose(2, 0, 1))).transpose(1, 2, 0)
-        ax.plot_surface(points[0], points[1], points[2], **kwargs)
-
-        # TODO: Add top and bottom rotor surface?
-        return None
-
     def _getBodyVerts(self, x, R_body2enu, R_ned2enu):
         center = R_ned2enu @ x[9:12]
         faces = getRectangularPrismVertices(center, self.bodyWidth, self.bodyWidth, self.bodyHeight, R=R_body2enu)
@@ -84,7 +93,22 @@ class QuadcopterAnimation():
 
         center4 = center_enu + R_arm @ (0.5 * self.armLength * np.array([0, -1, 0]))
         verts4 = getRectangularPrismVertices(center4, w, l, w, R=R_arm)
-        return [verts1, verts2, verts3, verts4]
+        return (verts1, verts2, verts3, verts4)
+
+    def _getRotorVerts(self, x, R_body2enu, R_ned2enu):
+        center_enu = R_ned2enu @ x[9:12]
+        z = np.array([0, 0, self.armWidth / 2 + self.rotorHeight / 2])
+
+        center1 = center_enu + R_body2enu @ (self.armLength * np.array([1 / np.sqrt(2), 1 / np.sqrt(2), 0]) - z)
+        center2 = center_enu + R_body2enu @ (self.armLength * np.array([1 / np.sqrt(2), -1 / np.sqrt(2), 0]) - z)
+        center3 = center_enu + R_body2enu @ (self.armLength * np.array([-1 / np.sqrt(2), -1 / np.sqrt(2), 0]) - z)
+        center4 = center_enu + R_body2enu @ (self.armLength * np.array([-1 / np.sqrt(2), 1 / np.sqrt(2), 0]) - z)
+
+        verts1 = getCylinderVertices(center1, self.rotorRadius, self.rotorHeight, R=R_body2enu)
+        verts2 = getCylinderVertices(center2, self.rotorRadius, self.rotorHeight, R=R_body2enu)
+        verts3 = getCylinderVertices(center3, self.rotorRadius, self.rotorHeight, R=R_body2enu)
+        verts4 = getCylinderVertices(center4, self.rotorRadius, self.rotorHeight, R=R_body2enu)
+        return (verts1, verts2, verts3, verts4)
 
     def _getHeadingVecPoints(self, x0, R_body2enu, R_ned2enu):
         pos_ned = x0[9:12]
@@ -95,40 +119,10 @@ class QuadcopterAnimation():
         vecEnd = vecStart + x_enu
         return np.stack([vecStart, vecEnd], axis=1)
 
-    def _addRotors(self, ax, x, R_body2enu, R_ned2enu):
-        center_enu = R_ned2enu @ x[9:12]
-        center1 = center_enu + R_body2enu @ (
-            self.armLength * np.array([1 / np.sqrt(2), 1 / np.sqrt(2), 0]) -
-            np.array([0, 0, self.armWidth / 2 + self.rotorHeight / 2])
-        )
-        center2 = center_enu + R_body2enu @ (
-            self.armLength * np.array([1 / np.sqrt(2), -1 / np.sqrt(2), 0]) -
-            np.array([0, 0, self.armWidth / 2 + self.rotorHeight / 2])
-        )
-        center3 = center_enu + R_body2enu @ (
-            self.armLength * np.array([-1 / np.sqrt(2), -1 / np.sqrt(2), 0]) -
-            np.array([0, 0, self.armWidth / 2 + self.rotorHeight / 2])
-        )
-        center4 = center_enu + R_body2enu @ (
-            self.armLength * np.array([-1 / np.sqrt(2), 1 / np.sqrt(2), 0]) -
-            np.array([0, 0, self.armWidth / 2 + self.rotorHeight / 2])
-        )
-        self._plotCylinder(
-            ax, center1, self.rotorRadius, self.rotorHeight, R=R_body2enu, color="red", linewidths=1, edgecolors='k'
-        )
-        self._plotCylinder(
-            ax, center2, self.rotorRadius, self.rotorHeight, R=R_body2enu, color="red", linewidths=1, edgecolors='k'
-        )
-        self._plotCylinder(
-            ax, center3, self.rotorRadius, self.rotorHeight, R=R_body2enu, color="red", linewidths=1, edgecolors='k'
-        )
-        self._plotCylinder(
-            ax, center4, self.rotorRadius, self.rotorHeight, R=R_body2enu, color="red", linewidths=1, edgecolors='k'
-        )
-
-    def _initializePlot(self, x0: np.ndarray):
+    def _initializePlot(self):
 
         # Get body to ENU rotation matrix
+        x0 = self.xTraj[0]
         phi, theta, psi = x0[6:9]
         R_body2ned = np.array(self.ac._bodyToInertialRotationMatrix(phi, theta, psi))
         R_ned2enu = np.array([[0, 1, 0], [1, 0, 0], [0, 0, -1]])
@@ -139,21 +133,31 @@ class QuadcopterAnimation():
         body = Poly3DCollection(verts, facecolors="cyan", linewidths=1, edgecolors='k')
 
         verts = self._getArmVerts(x0, R_body2enu, R_ned2enu)
-        arms = [Poly3DCollection(verts[i], facecolors="cyan", linewidths=1, edgecolors='k', zorder=1) for i in range(4)]
+        arms = [Poly3DCollection(verts[i], facecolors="cyan", linewidths=1, edgecolors='k') for i in range(4)]
+
+        verts = self._getRotorVerts(x0, R_body2enu, R_ned2enu)
+        rotors = [Poly3DCollection(verts[i], facecolors="red", linewidths=1, edgecolors='k') for i in range(4)]
 
         vec = self._getHeadingVecPoints(x0, R_body2enu, R_ned2enu)
 
         # Initialize figure and axes
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
+        ax.add_collection(body)
         ax.add_collection(arms[0])
         ax.add_collection(arms[1])
         ax.add_collection(arms[2])
         ax.add_collection(arms[3])
-        ax.add_collection(body)
-        self._addRotors(ax, x0, R_body2enu, R_ned2enu)  # TODO: Use Poly3DCollection for rotors to be compatible with funcAnimation
+        ax.add_collection(rotors[0])
+        ax.add_collection(rotors[1])
+        ax.add_collection(rotors[2])
+        ax.add_collection(rotors[3])
         headingLine = ax.plot(vec[0], vec[1], vec[2], "r-")[0]
-        return fig, ax, (body, arms, headingLine)
+        ax.set_xlabel("E (m)")
+        ax.set_ylabel("N (m)")
+        ax.set_zlabel("U (m)")
+
+        return fig, ax, (body, arms, rotors, headingLine)
 
     def _updatePlot(self, k, objs):
         pass
@@ -168,14 +172,12 @@ def main():
     x = np.zeros((2, 12))
     x[0, 9:12] = np.array([0, 0.5, 0])  # Position NED
     x[0, 6:9] = np.array([0, np.deg2rad(30), 0])  # phi,theta,psi
+
     anim = QuadcopterAnimation(t, x)
-    fig, ax, objs = anim._initializePlot(x[0])
+    fig, ax, objs = anim._initializePlot()
     ax.set_xlim([-1, 1])
     ax.set_ylim([-1, 1])
     ax.set_zlim([-1, 1])
-    ax.set_xlabel("E (m)")
-    ax.set_ylabel("N (m)")
-    ax.set_zlabel("U (m)")
     plt.show()
 
 
