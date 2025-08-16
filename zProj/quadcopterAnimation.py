@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from itertools import product
+from functools import partial
 from matplotlib.animation import FuncAnimation
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from zProj.quadcopter import Quadcopter
@@ -140,6 +141,12 @@ class QuadcopterAnimation():
 
         vec = self._getHeadingVecPoints(x0, R_body2enu, R_ned2enu)
 
+        # Determine bounds
+        pos_ned = self.xTraj[:, 9:12]
+        pos_enu = R_ned2enu @ pos_ned.transpose(1, 0)
+        enuMax = np.max(pos_enu, axis=1) + self.armLength
+        enuMin = np.min(pos_enu, axis=1) - self.armLength
+
         # Initialize figure and axes
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
@@ -156,28 +163,60 @@ class QuadcopterAnimation():
         ax.set_xlabel("E (m)")
         ax.set_ylabel("N (m)")
         ax.set_zlabel("U (m)")
+        ax.set_xlim(enuMin[0], enuMax[0])
+        ax.set_ylim(enuMin[1], enuMax[1])
+        ax.set_zlim(enuMin[2], enuMax[2])
+        ax.set_aspect('equal')
 
         return fig, ax, (body, arms, rotors, headingLine)
 
     def _updatePlot(self, k, objs):
-        pass
+        # Get body to ENU rotation matrix
+        x = self.xTraj[k]
+        phi, theta, psi = x[6:9]
+        R_body2ned = np.array(self.ac._bodyToInertialRotationMatrix(phi, theta, psi))
+        R_ned2enu = np.array([[0, 1, 0], [1, 0, 0], [0, 0, -1]])
+        R_body2enu = R_ned2enu @ R_body2ned
+
+        # Update each quadcopter component
+        (body, arms, rotors, headingLine) = objs
+
+        verts = self._getBodyVerts(x, R_body2enu, R_ned2enu)
+        body.set_verts(verts)
+
+        verts = self._getArmVerts(x, R_body2enu, R_ned2enu)
+        arms[0].set_verts(verts[0])
+        arms[1].set_verts(verts[1])
+        arms[2].set_verts(verts[2])
+        arms[3].set_verts(verts[3])
+
+        verts = self._getRotorVerts(x, R_body2enu, R_ned2enu)
+        rotors[0].set_verts(verts[0])
+        rotors[1].set_verts(verts[1])
+        rotors[2].set_verts(verts[2])
+        rotors[3].set_verts(verts[3])
+
+        vec = self._getHeadingVecPoints(x, R_body2enu, R_ned2enu)
+        headingLine.set_data_3d(vec[0], vec[1], vec[2])
+
+        return (body, arms, rotors, headingLine)
 
     def animate(self):
-        fig = plt.figure()
-        FuncAnimation(fig, self.updatePlot, range(self.N), self.initializePlot)
+        fig, ax, objs = self._initializePlot()
+        animFun = partial(self._updatePlot, objs=objs)
+        interval = (self.tTraj[1] - self.tTraj[0]) * 1000
+        ani = FuncAnimation(fig, animFun, frames=self.N, interval=interval)
+        return ani
 
 
 def main():
     t = [0, 1]
     x = np.zeros((2, 12))
-    x[0, 9:12] = np.array([0, 0.5, 0])  # Position NED
-    x[0, 6:9] = np.array([0, np.deg2rad(30), 0])  # phi,theta,psi
+    x[1, 9:12] = np.array([0, 0.2, 0])  # Position NED
+    x[1, 6:9] = np.array([0, np.deg2rad(10), 0])  # phi,theta,psi
 
-    anim = QuadcopterAnimation(t, x)
-    fig, ax, objs = anim._initializePlot()
-    ax.set_xlim([-1, 1])
-    ax.set_ylim([-1, 1])
-    ax.set_zlim([-1, 1])
+    animObj = QuadcopterAnimation(t, x)
+    ani = animObj.animate()
     plt.show()
 
 
