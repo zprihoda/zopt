@@ -4,12 +4,25 @@ A random collection of small projects
 ## TODO:
 ### All
 - Animation
-    - Cleanup frame logic, consider just using ENU frame, should help cleanup code.
-    - Verify current plotting logic
-        - Write unit tests for inner functions?
-    - Put together animation
-        - Start with frame-by-frame animation (artistAnimation)
-        - Consider moving to data update (funcAnimation)
+    - Refactor to be easier to update
+    - Break functions into: data generation, object creation, eg. for the body:
+        - verts = getBodyVerts(x, ...): Get the vertices for the body object
+        - obj = createBodyObj(verts): Creates body object
+        - updateBodyObj(verts): To update object (if needed)
+    ```
+    Update poly3d collection (body, arms):
+        poly = Poly3DCollection(verts, ...)   # create intitial object
+        poly.set_verts(verts_new)
+    Update line (heading vector)
+        line, = ax.plot(...)
+        line.set_xdata(new_x)
+        line.set_ydata(new_y)
+        line.set_zdata(new_z)
+    Update surface
+        Not possible, need to delete and recreate surface...
+        Alternate: Change surface to Poly3DCollection
+    ```
+    - Animate!!!
     - Plot options:
         - Add 2d traces (xy, yz, zx traces)
         - Auto-scale axis limits based on data
@@ -23,6 +36,8 @@ A random collection of small projects
         - Move proportionalFeedbackController from lqrUtils to controllers
         - Add integral controller from integralLqrControl demo.
         - Create/move tests
+- iLQR/DDP:
+    - Look into using jax.lax.cond to jit functions with conditionals
 - Simulator:
     - Add support for multi-rate systems
     - Generalize simBlocks + add signal map

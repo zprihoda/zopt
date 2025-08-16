@@ -7,6 +7,22 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from zProj.quadcopter import Quadcopter
 
 
+def getRectangularPrismVertices(center: np.ndarray, dx: float, dy: float, dz: float, R: np.ndarray = np.eye(3)):
+    """Get vertices for a rectangular prism"""
+    vertex_pattern = np.array(list(product([-1, 1], repeat=3)))
+    dv_body = (0.5 * np.array([dx, dy, dz])[None, :] * vertex_pattern)
+    v = center + np.squeeze(R @ dv_body[:, :, None])
+    faces = [
+        [v[0], v[1], v[3], v[2]],
+        [v[4], v[5], v[7], v[6]],
+        [v[0], v[1], v[5], v[4]],
+        [v[2], v[3], v[7], v[6]],
+        [v[0], v[2], v[6], v[4]],
+        [v[1], v[3], v[7], v[5]],
+    ]
+    return faces
+
+
 class QuadcopterAnimation():
 
     def __init__(self, tTraj: np.ndarray, xTraj: np.ndarray):
@@ -32,21 +48,6 @@ class QuadcopterAnimation():
 
         self.ac = Quadcopter()  # For body to inertial rotation matrix
 
-    def _getRectangularPrism(self, center, dx, dy, dz, R=np.eye(3), **kwargs):
-        vertex_pattern = np.array(list(product([-1, 1], repeat=3)))
-        dv_body = (0.5 * np.array([dx, dy, dz])[None, :] * vertex_pattern)
-        v = center + np.squeeze(R @ dv_body[:, :, None])
-        faces = [
-            [v[0], v[1], v[3], v[2]],
-            [v[4], v[5], v[7], v[6]],
-            [v[0], v[1], v[5], v[4]],
-            [v[2], v[3], v[7], v[6]],
-            [v[0], v[2], v[6], v[4]],
-            [v[1], v[3], v[7], v[5]],
-        ]
-        prism = Poly3DCollection(faces, **kwargs)
-        return prism
-
     def _plotCylinder(self, ax, center, r, dz, R=np.eye(3), N=50, **kwargs):
         theta = np.linspace(0, 2 * np.pi, N)
         z = np.array([-dz / 2, dz / 2])
@@ -59,70 +60,35 @@ class QuadcopterAnimation():
         # TODO: Add top and bottom rotor surface?
         return None
 
-    def _getBody(self, x, R_body2enu, R_ned2enu):
+    def _initBody(self, x, R_body2enu, R_ned2enu):
         center = R_ned2enu @ x[9:12]
-        body = self._getRectangularPrism(
-            center,
-            self.bodyWidth,
-            self.bodyWidth,
-            self.bodyHeight,
-            R=R_body2enu,
-            facecolors="cyan",
-            linewidths=1,
-            edgecolors='k',
-            zorder=1
-        )
+        faces = getRectangularPrismVertices(center, self.bodyWidth, self.bodyWidth, self.bodyHeight, R=R_body2enu)
+        body = Poly3DCollection(faces, facecolors="cyan", linewidths=1, edgecolors='k', zorder=1)
         return body
 
-    def _getArms(self, x, R_body2enu, R_ned2enu):
+    def _initArms(self, x, R_body2enu, R_ned2enu):
         th = np.pi / 4
         R_arm2body = np.array([[np.cos(th), -np.sin(th), 0], [np.sin(th), np.cos(th), 0], [0, 0, 1]])
         R_arm = R_body2enu @ R_arm2body
         center_enu = R_ned2enu @ x[9:12]
+        l = self.armLength
+        w = self.armWidth
+
         center1 = center_enu + R_arm @ (0.5 * self.armLength * np.array([1, 0, 0]))
-        arm1 = self._getRectangularPrism(
-            center1,
-            self.armLength,
-            self.armWidth,
-            self.armWidth,
-            R=R_arm,
-            facecolors="cyan",
-            linewidths=1,
-            edgecolors='k'
-        )
+        verts1 = getRectangularPrismVertices(center1, l, w, w, R=R_arm)
+        arm1 = Poly3DCollection(verts1, facecolors="cyan", linewidths=1, edgecolors='k', zorder=1)
+
         center2 = center_enu + R_arm @ (0.5 * self.armLength * np.array([-1, 0, 0]))
-        arm2 = self._getRectangularPrism(
-            center2,
-            self.armLength,
-            self.armWidth,
-            self.armWidth,
-            R=R_arm,
-            facecolors="cyan",
-            linewidths=1,
-            edgecolors='k'
-        )
+        verts2 = getRectangularPrismVertices(center2, l, w, w, R=R_arm)
+        arm2 = Poly3DCollection(verts2, facecolors="cyan", linewidths=1, edgecolors='k', zorder=1)
+
         center3 = center_enu + R_arm @ (0.5 * self.armLength * np.array([0, 1, 0]))
-        arm3 = self._getRectangularPrism(
-            center3,
-            self.armWidth,
-            self.armLength,
-            self.armWidth,
-            R=R_arm,
-            facecolors="cyan",
-            linewidths=1,
-            edgecolors='k'
-        )
+        verts3 = getRectangularPrismVertices(center3, w, l, w, R=R_arm)
+        arm3 = Poly3DCollection(verts3, facecolors="cyan", linewidths=1, edgecolors='k', zorder=1)
+
         center4 = center_enu + R_arm @ (0.5 * self.armLength * np.array([0, -1, 0]))
-        arm4 = self._getRectangularPrism(
-            center4,
-            self.armWidth,
-            self.armLength,
-            self.armWidth,
-            R=R_arm,
-            facecolors="cyan",
-            linewidths=1,
-            edgecolors='k'
-        )
+        verts4 = getRectangularPrismVertices(center4, w, l, w, R=R_arm)
+        arm4 = Poly3DCollection(verts4, facecolors="cyan", linewidths=1, edgecolors='k', zorder=1)
         return [arm1, arm2, arm3, arm4]
 
     def _addRotors(self, ax, x, R_body2enu, R_ned2enu):
@@ -169,8 +135,8 @@ class QuadcopterAnimation():
 
         pos_enu = R_ned2enu @ pos_ned
 
-        body = self._getBody(x0, R_body2enu, R_ned2enu)
-        arms = self._getArms(x0, R_body2enu, R_ned2enu)
+        body = self._initBody(x0, R_body2enu, R_ned2enu)
+        arms = self._initArms(x0, R_body2enu, R_ned2enu)
 
         # Make heading marker
         x_body = 2 * self.bodyWidth / 2 * np.array([1, 0, 0])
