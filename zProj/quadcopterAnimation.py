@@ -60,13 +60,12 @@ class QuadcopterAnimation():
         # TODO: Add top and bottom rotor surface?
         return None
 
-    def _initBody(self, x, R_body2enu, R_ned2enu):
+    def _getBodyVerts(self, x, R_body2enu, R_ned2enu):
         center = R_ned2enu @ x[9:12]
         faces = getRectangularPrismVertices(center, self.bodyWidth, self.bodyWidth, self.bodyHeight, R=R_body2enu)
-        body = Poly3DCollection(faces, facecolors="cyan", linewidths=1, edgecolors='k', zorder=1)
-        return body
+        return faces
 
-    def _initArms(self, x, R_body2enu, R_ned2enu):
+    def _getArmVerts(self, x, R_body2enu, R_ned2enu):
         th = np.pi / 4
         R_arm2body = np.array([[np.cos(th), -np.sin(th), 0], [np.sin(th), np.cos(th), 0], [0, 0, 1]])
         R_arm = R_body2enu @ R_arm2body
@@ -76,20 +75,25 @@ class QuadcopterAnimation():
 
         center1 = center_enu + R_arm @ (0.5 * self.armLength * np.array([1, 0, 0]))
         verts1 = getRectangularPrismVertices(center1, l, w, w, R=R_arm)
-        arm1 = Poly3DCollection(verts1, facecolors="cyan", linewidths=1, edgecolors='k', zorder=1)
 
         center2 = center_enu + R_arm @ (0.5 * self.armLength * np.array([-1, 0, 0]))
         verts2 = getRectangularPrismVertices(center2, l, w, w, R=R_arm)
-        arm2 = Poly3DCollection(verts2, facecolors="cyan", linewidths=1, edgecolors='k', zorder=1)
 
         center3 = center_enu + R_arm @ (0.5 * self.armLength * np.array([0, 1, 0]))
         verts3 = getRectangularPrismVertices(center3, w, l, w, R=R_arm)
-        arm3 = Poly3DCollection(verts3, facecolors="cyan", linewidths=1, edgecolors='k', zorder=1)
 
         center4 = center_enu + R_arm @ (0.5 * self.armLength * np.array([0, -1, 0]))
         verts4 = getRectangularPrismVertices(center4, w, l, w, R=R_arm)
-        arm4 = Poly3DCollection(verts4, facecolors="cyan", linewidths=1, edgecolors='k', zorder=1)
-        return [arm1, arm2, arm3, arm4]
+        return [verts1, verts2, verts3, verts4]
+
+    def _getHeadingVecPoints(self, x0, R_body2enu, R_ned2enu):
+        pos_ned = x0[9:12]
+        pos_enu = R_ned2enu @ pos_ned
+        x_body = 2 * self.bodyWidth / 2 * np.array([1, 0, 0])
+        x_enu = R_body2enu @ x_body
+        vecStart = pos_enu + R_body2enu @ np.array([0, 0, -self.bodyHeight / 2])
+        vecEnd = vecStart + x_enu
+        return np.stack([vecStart, vecEnd], axis=1)
 
     def _addRotors(self, ax, x, R_body2enu, R_ned2enu):
         center_enu = R_ned2enu @ x[9:12]
@@ -124,26 +128,22 @@ class QuadcopterAnimation():
 
     def _initializePlot(self, x0: np.ndarray):
 
-        pos_ned = x0[9:12]
-        phi, theta, psi = x0[6:9]
-        ac = Quadcopter()
-
         # Get body to ENU rotation matrix
-        R_body2ned = np.array(ac._bodyToInertialRotationMatrix(phi, theta, psi))
+        phi, theta, psi = x0[6:9]
+        R_body2ned = np.array(self.ac._bodyToInertialRotationMatrix(phi, theta, psi))
         R_ned2enu = np.array([[0, 1, 0], [1, 0, 0], [0, 0, -1]])
         R_body2enu = R_ned2enu @ R_body2ned
 
-        pos_enu = R_ned2enu @ pos_ned
+        # Initialize objects
+        verts = self._getBodyVerts(x0, R_body2enu, R_ned2enu)
+        body = Poly3DCollection(verts, facecolors="cyan", linewidths=1, edgecolors='k')
 
-        body = self._initBody(x0, R_body2enu, R_ned2enu)
-        arms = self._initArms(x0, R_body2enu, R_ned2enu)
+        verts = self._getArmVerts(x0, R_body2enu, R_ned2enu)
+        arms = [Poly3DCollection(verts[i], facecolors="cyan", linewidths=1, edgecolors='k', zorder=1) for i in range(4)]
 
-        # Make heading marker
-        x_body = 2 * self.bodyWidth / 2 * np.array([1, 0, 0])
-        x_enu = R_body2enu @ x_body
-        vecStart = pos_enu + R_body2enu @ np.array([0, 0, -self.bodyHeight / 2])
-        vecEnd = vecStart + x_enu
+        vec = self._getHeadingVecPoints(x0, R_body2enu, R_ned2enu)
 
+        # Initialize figure and axes
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
         ax.add_collection(arms[0])
@@ -151,9 +151,9 @@ class QuadcopterAnimation():
         ax.add_collection(arms[2])
         ax.add_collection(arms[3])
         ax.add_collection(body)
-        self._addRotors(ax, x0, R_body2enu, R_ned2enu)
-        ax.plot(*zip(vecStart, vecEnd), "r-")
-        return fig, ax
+        self._addRotors(ax, x0, R_body2enu, R_ned2enu)  # TODO: Use Poly3DCollection for rotors to be compatible with funcAnimation
+        headingLine = ax.plot(vec[0], vec[1], vec[2], "r-")[0]
+        return fig, ax, (body, arms, headingLine)
 
     def _updatePlot(self, k, objs):
         pass
@@ -166,10 +166,10 @@ class QuadcopterAnimation():
 def main():
     t = [0, 1]
     x = np.zeros((2, 12))
-    x[0, 9:12] = np.array([0, 0, 0])  # Position NED
-    x[0, 6:9] = np.array([0, 0, 0])  # phi,theta,psi
+    x[0, 9:12] = np.array([0, 0.5, 0])  # Position NED
+    x[0, 6:9] = np.array([0, np.deg2rad(30), 0])  # phi,theta,psi
     anim = QuadcopterAnimation(t, x)
-    fig, ax = anim._initializePlot(x[0])
+    fig, ax, objs = anim._initializePlot(x[0])
     ax.set_xlim([-1, 1])
     ax.set_ylim([-1, 1])
     ax.set_zlim([-1, 1])
