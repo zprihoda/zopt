@@ -3,11 +3,6 @@ A random collection of small projects
 
 ## TODO:
 ### All
-- Animation
-    - Plot options:
-        - Add 2d traces (xy, yz, zx traces)
-    - Add animation to one of the demos (iLQR?)
-
 - Tasks:
     - Indirect methods (port / cleanup Kirk algorithms)
     - Direct Methods

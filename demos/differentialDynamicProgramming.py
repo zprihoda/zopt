@@ -2,11 +2,11 @@ import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import numpy as np
 
-from zProj.quadcopter import Quadcopter
-from zProj.simulator import Simulator, SimBlock
-from zProj.plottingTools import plotTimeTrajectory
-from zProj.quadcopterAnimation import QuadcopterAnimation
 from zProj.ilqrUtils import DDP
+from zProj.plottingTools import plotTimeTrajectory
+from zProj.quadcopter import Quadcopter
+from zProj.quadcopterAnimation import QuadcopterAnimation
+from zProj.simulator import Simulator, SimBlock
 
 
 def cost(k, x, u, Q, R):
@@ -24,7 +24,7 @@ def main():
     dt = 0.1
     N = 100
     Q = np.eye(12)
-    R = 0.2*np.eye(4)
+    R = 0.2 * np.eye(4)
     tArr = np.arange(N + 1) * dt
 
     # Get quadcopter dynamics (and trim)
@@ -74,9 +74,9 @@ def main():
     plt.legend(["DDP Trajectory", "Sim"])
     plt.show()
 
-    # Simulate Results
+    # Animate Results
     animObj = QuadcopterAnimation(tSim, xSim)
-    ani = animObj.animate()
+    _ = animObj.animate()
     plt.show()
 
 

@@ -207,18 +207,3 @@ class QuadcopterAnimation():
         interval = (self.tTraj[1] - self.tTraj[0]) * 1000
         ani = FuncAnimation(fig, animFun, frames=self.N, interval=interval)
         return ani
-
-
-def main():
-    t = [0, 1]
-    x = np.zeros((2, 12))
-    x[1, 9:12] = np.array([0, 0.2, 0])  # Position NED
-    x[1, 6:9] = np.array([0, np.deg2rad(10), 0])  # phi,theta,psi
-
-    animObj = QuadcopterAnimation(t, x)
-    ani = animObj.animate()
-    plt.show()
-
-
-if __name__ == "__main__":
-    main()

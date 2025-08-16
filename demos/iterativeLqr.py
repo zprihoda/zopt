@@ -2,10 +2,11 @@ import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import numpy as np
 
-from zProj.quadcopter import Quadcopter
-from zProj.simulator import Simulator, SimBlock
-from zProj.plottingTools import plotTimeTrajectory
 from zProj.ilqrUtils import iLQR
+from zProj.plottingTools import plotTimeTrajectory
+from zProj.quadcopter import Quadcopter
+from zProj.quadcopterAnimation import QuadcopterAnimation
+from zProj.simulator import Simulator, SimBlock
 
 
 def cost(k, x, u, Q, R):
@@ -33,7 +34,7 @@ def main():
     # Setup and solve iLQR problem
     dynFun = lambda k, x, u: x + dt * ac.inertialDynamics(x, u)
     costFun = lambda k, x, u: cost(k, x, u, Q, R)
-    terminalCostFun = None
+    terminalCostFun = lambda x: 10 * x @ Q @ x
     uGuess = np.repeat(uTrim[None, :], N, axis=0)
     prob = iLQR(dynFun, costFun, x0, uGuess, terminalCostFun=terminalCostFun, tol=1e-3)
     xTraj, uTraj, LArr = prob.solve()
@@ -71,6 +72,11 @@ def main():
     fig = plotTimeTrajectory(tArr[:-1], uTraj, names=["thrust", "pDot", "qDot", "rDot"], title="Pseudo Controls")
     plotTimeTrajectory(tSim[:-1], uSim, fig=fig)
     plt.legend(["iLQR Trajectory", "Sim"])
+    plt.show()
+
+    # Animate Results
+    animObj = QuadcopterAnimation(tSim, xSim)
+    _ = animObj.animate()
     plt.show()
 
 
