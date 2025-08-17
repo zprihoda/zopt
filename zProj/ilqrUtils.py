@@ -243,7 +243,6 @@ class iLQR():
         N, m = u.shape
         n = x.shape[1]
 
-        cf = self.cf(x[N])
         cfx = self.cfx(x[N])
         cfxx = self.cfxx(x[N])
 

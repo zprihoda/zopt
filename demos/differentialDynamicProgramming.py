@@ -2,10 +2,11 @@ import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import numpy as np
 
-from zProj.quadcopter import Quadcopter
-from zProj.simulator import Simulator, SimBlock
-from zProj.plottingTools import plotTimeTrajectory
 from zProj.ilqrUtils import DDP
+from zProj.plottingTools import plotTimeTrajectory
+from zProj.quadcopter import Quadcopter
+from zProj.quadcopterAnimation import QuadcopterAnimation
+from zProj.simulator import Simulator, SimBlock
 
 
 def cost(k, x, u, Q, R):
@@ -23,7 +24,7 @@ def main():
     dt = 0.1
     N = 100
     Q = np.eye(12)
-    R = np.eye(4)
+    R = 0.2 * np.eye(4)
     tArr = np.arange(N + 1) * dt
 
     # Get quadcopter dynamics (and trim)
@@ -33,7 +34,7 @@ def main():
     # Setup and solve DDP problem
     dynFun = lambda k, x, u: x + dt * ac.inertialDynamics(x, u)
     costFun = lambda k, x, u: cost(k, x, u, Q, R)
-    terminalCostFun = None
+    terminalCostFun = lambda x: 10 * x.T @ np.eye(12) @ x
     uGuess = np.repeat(uTrim[None, :], N, axis=0)
     prob = DDP(dynFun, costFun, x0, uGuess, terminalCostFun=terminalCostFun)
     xTraj, uTraj, LArr = prob.solve()
@@ -71,6 +72,11 @@ def main():
     fig = plotTimeTrajectory(tArr[:-1], uTraj, names=["thrust", "pDot", "qDot", "rDot"], title="Pseudo Controls")
     plotTimeTrajectory(tSim[:-1], uSim, fig=fig)
     plt.legend(["DDP Trajectory", "Sim"])
+    plt.show()
+
+    # Animate Results
+    animObj = QuadcopterAnimation(tSim, xSim)
+    _ = animObj.animate()
     plt.show()
 
 
