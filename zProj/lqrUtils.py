@@ -238,20 +238,14 @@ def bilinearAffineLqr(
     """
     (n, m) = B.shape[1:]
 
-    # Initialize
-    V = Q[-1]
-    v = q[-1]
-    v0 = q0[-1]
-
-    LArr = np.zeros((N, m, n))
-    lArr = np.zeros((N, m))
-    for k in range(N - 1, -1, -1):
+    def scan_f(Values, k):
+        (V, v, v0) = Values
         Su = r[k] + v.T @ B[k] + d[k].T @ V @ B[k]
         Suu = R[k] + B[k].T @ V @ B[k]
         Sux = H[k] + B[k].T @ V @ A[k]
 
-        L = np.linalg.solve(Suu, Sux)
-        l = np.linalg.solve(Suu, Su)  # TODO: Combine with above solve to speed up computation (only one factorization)
+        L = jnp.linalg.solve(Suu, Sux)
+        l = jnp.linalg.solve(Suu, Su)
 
         VNew = Q[k] + A[k].T @ V @ A[k] - L.T @ Suu @ L
         vNew = q[k] + A[k].T @ (v + V @ d[k]) - Sux.T @ l
@@ -261,9 +255,9 @@ def bilinearAffineLqr(
         v = vNew
         v0 = v0New
 
-        LArr[k] = L
-        lArr[k] = l
+        return ((V, v, v0), (L, l))
 
+    _, (LArr, lArr) = jax.lax.scan(scan_f, (Q[-1], q[-1], q0[-1]), xs=jnp.arange(N), reverse=True)
     return LArr, lArr
 
 
