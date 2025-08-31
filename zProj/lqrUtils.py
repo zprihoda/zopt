@@ -163,12 +163,12 @@ def discreteFiniteHorizonLqr(A: jnp.ndarray, B: jnp.ndarray, Q: jnp.ndarray, R: 
         L : Optimal LQR gains indexed by time step: `L[k]`
     """
 
-    def scan_f(V, k):
+    def riccatiStep(V, k):
         L = jnp.linalg.solve(R[k] + B[k].T @ V @ B[k], B[k].T @ V @ A[k])
         V = Q[k] + L.T @ R[k] @ L + (A[k] - B[k] @ L).T @ V @ (A[k] - B[k] @ L)
         return V, L
 
-    _, L = jax.lax.scan(scan_f, Q[-1], xs=jnp.arange(N), reverse=True)
+    _, L = jax.lax.scan(riccatiStep, Q[-1], xs=jnp.arange(N), reverse=True)
     return L
 
 
@@ -238,7 +238,7 @@ def bilinearAffineLqr(
     """
     (n, m) = B.shape[1:]
 
-    def scan_f(Values, k):
+    def bilinearRiccatiStep(Values, k):
         (V, v, v0) = Values
         Su = r[k] + v.T @ B[k] + d[k].T @ V @ B[k]
         Suu = R[k] + B[k].T @ V @ B[k]
@@ -257,7 +257,7 @@ def bilinearAffineLqr(
 
         return ((V, v, v0), (L, l))
 
-    _, (LArr, lArr) = jax.lax.scan(scan_f, (Q[-1], q[-1], q0[-1]), xs=jnp.arange(N), reverse=True)
+    _, (LArr, lArr) = jax.lax.scan(bilinearRiccatiStep, (Q[-1], q[-1], q0[-1]), xs=jnp.arange(N), reverse=True)
     return LArr, lArr
 
 
