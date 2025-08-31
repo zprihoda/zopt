@@ -3,8 +3,65 @@ import jax.numpy as jnp
 import numpy as np
 import warnings
 
-from typing import Callable
+from typing import Callable, NamedTuple
 from zProj.jaxUtils import maybeJit, maybeJitCls
+
+
+class QuadraticValueFunction(NamedTuple):
+    """Value function of the form: `V(x) = v + v_x.T @ x + 0.5 * (x.T @ v_xx @ x)`"""
+    v: jnp.array
+    v_x: jnp.array
+    v_xx: jnp.array
+
+    def __call__(self, x):
+        v, v_x, v_xx = self
+        return v + v_x.T @ x + 0.5 * x.T @ v_xx @ x
+
+
+class QuadraticCostFunction(NamedTuple):
+    """
+    Quadratic cost function of the form:
+    ```
+    C(x,u) = c + c_x.T @ x + c_u.T @ u + 0.5 * (x.T @ c_xx @ x + 2*x.T @ c_xu @ u + u.T @ c_uu @ u)
+    ```
+    """
+    c: jnp.array
+    c_x: jnp.array
+    c_u: jnp.array
+    c_xx: jnp.array
+    c_xu: jnp.array
+    c_uu: jnp.array
+
+    @classmethod
+    def from_function(cls, costFun, x0, u0):
+        """Second order Taylor series expansion of cost function `c(x,u)` about (x0,u0)"""
+        c = costFun(x0, u0)
+        c_x, c_u = jax.jacobian(costFun, argnums=(0, 1))(x0, u0)
+        ((c_xx, c_xu), (_, c_uu)) = jax.hessian(costFun, (0, 1))(x0, u0)
+        return cls(c, c_x, c_u, c_xx, c_xu, c_uu)
+
+    def __call__(self, x, u):
+        c, c_x, c_u, c_xx, c_xu, c_uu = self
+        return c + c_x.T @ x + c_u.T @ u + 0.5 * (x.T @ c_xx @ x + 2*x.T @ c_xu @ u + u.T @ c_uu @ u)
+
+
+class AffineDynamics(NamedTuple):
+    """Affine dynamics of the form: `xOut = f + f_x @ x + f_u @ u`"""
+    f: jnp.ndarray
+    f_x: jnp.ndarray
+    f_u: jnp.ndarray
+
+    @classmethod
+    def from_function(cls, dynFun, x0, u0):
+        """First order Taylor series expansion of the dynamics function `f(x,u)` about (x0,u0)"""
+        f = dynFun(x0,u0)
+        f_x = jax.jacobian(dynFun, 0)(x0,u0)
+        f_u = jax.jacobian(dynFun, 1)(x0,u0)
+        return cls(f, f_x, f_u)
+
+    def __call__(self, x, u):
+        f,f_x,f_u = self
+        return f + f_x @ x + f_u @ u
 
 
 ## iLQR and DDP
