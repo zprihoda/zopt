@@ -35,7 +35,7 @@ def test_finiteHorizonLqr():
     R = lambda t: np.eye(2)
     Qf = np.eye(2)
     T = 1
-    K = lqr.finiteHorizonLqr(A, B, Q, R, Qf, T)
+    K = lqr.finiteHorizonLqr(A, B, Q, R, Qf, T, N=4)
     assert K(T) == pytest.approx(np.eye(2))  # From V(T) = Qf, K(T) = R(T)^{-1} @ B(T).T @ V(T)
 
     # Analytical solution to the scalar form of the above Ricatti equation
@@ -108,4 +108,4 @@ def test_proportionalFeedbackController():
     assert u == pytest.approx(u_exp)
 
 
-test_bilinearAffineLqr()
+test_finiteHorizonLqr()

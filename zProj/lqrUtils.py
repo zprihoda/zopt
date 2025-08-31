@@ -5,8 +5,9 @@ import numpy.linalg as npl
 import scipy.linalg as spl
 import scipy.integrate as spi
 
-from zProj.jaxUtils import interpMapped
+from jax.experimental.ode import odeint
 from typing import Callable
+from zProj.jaxUtils import interpMapped
 
 
 ## LQR Algorithms
@@ -58,7 +59,8 @@ def finiteHorizonLqr(
     Q: Callable[[float], np.ndarray],
     R_inv: Callable[[float], np.ndarray],
     Qf: np.ndarray,
-    T: float
+    T: float,
+    N: int = 50
 ) -> Callable[[float], np.ndarray]:
     """
     Compute the finite horizon LQR gains by numerically integrating the LQR HJB equation
@@ -77,6 +79,7 @@ def finiteHorizonLqr(
         R_inv : Inverse of control cost matrix as a function of time: `R_inv(t)`
         Qf : Terminal state cost matrix
         T : Time horizon
+        N : Number of ODE time steps.
 
     Returns
     -------
@@ -85,13 +88,12 @@ def finiteHorizonLqr(
     # Solve the LQR HJB equation
     V0 = Qf.reshape(-1)
     n = A(0).shape[0]
-    dV = lambda t, V: _lqrHjb(t, V, A, B, Q, R_inv, n)
-    out = spi.solve_ivp(dV, (T, 0), V0)
+    t = jnp.linspace(0, T, num=N)
+    dV = lambda V, t: -_lqrHjb(T - t, V, A, B, Q, R_inv, n)
+    out = odeint(dV, V0, t)
 
     # Setup gain interpolation function
-    t = out.t[::-1]  # Flip to forward time
-    V = out.y[:, ::-1]
-
+    V = out[::-1].T
     Vfun = lambda tq: interpMapped(tq, t, V)
     K = lambda t: R_inv(t) @ B(t).T @ Vfun(t).reshape((n, n))
     return K
@@ -204,17 +206,17 @@ def discreteInfiniteHorizonLqr(
 
 
 def bilinearAffineLqr(
-    A: np.ndarray,
-    B: np.ndarray,
-    d: np.ndarray,
-    Q: np.ndarray,
-    R: np.ndarray,
-    H: np.ndarray,
-    q: np.ndarray,
-    r: np.ndarray,
-    q0: np.ndarray,
+    A: jnp.ndarray,
+    B: jnp.ndarray,
+    d: jnp.ndarray,
+    Q: jnp.ndarray,
+    R: jnp.ndarray,
+    H: jnp.ndarray,
+    q: jnp.ndarray,
+    r: jnp.ndarray,
+    q0: jnp.ndarray,
     N: int
-) -> tuple[np.ndarray, np.ndarray]:
+) -> tuple[jnp.ndarray, jnp.ndarray]:
     """
     Finite Horizon LQR with bilinear cost and affine dynamics
 
