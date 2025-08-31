@@ -42,7 +42,7 @@ class QuadraticCostFunction(NamedTuple):
 
     def __call__(self, x, u):
         c, c_x, c_u, c_xx, c_xu, c_uu = self
-        return c + c_x.T @ x + c_u.T @ u + 0.5 * (x.T @ c_xx @ x + 2*x.T @ c_xu @ u + u.T @ c_uu @ u)
+        return c + c_x.T @ x + c_u.T @ u + 0.5 * (x.T @ c_xx @ x + 2 * x.T @ c_xu @ u + u.T @ c_uu @ u)
 
 
 class AffineDynamics(NamedTuple):
@@ -54,13 +54,13 @@ class AffineDynamics(NamedTuple):
     @classmethod
     def from_function(cls, dynFun, x0, u0):
         """First order Taylor series expansion of the dynamics function `f(x,u)` about (x0,u0)"""
-        f = dynFun(x0,u0)
-        f_x = jax.jacobian(dynFun, 0)(x0,u0)
-        f_u = jax.jacobian(dynFun, 1)(x0,u0)
+        f = dynFun(x0, u0)
+        f_x = jax.jacobian(dynFun, 0)(x0, u0)
+        f_u = jax.jacobian(dynFun, 1)(x0, u0)
         return cls(f, f_x, f_u)
 
     def __call__(self, x, u):
-        f,f_x,f_u = self
+        f, f_x, f_u = self
         return f + f_x @ x + f_u @ u
 
 
