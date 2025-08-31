@@ -3,9 +3,19 @@ A random collection of small projects
 
 ## TODO:
 ### All
+- ilqr-jax:
+    - Update iLQR to be fully jittable, see LQR Variants from stanford examples for help
+    - Update other lqr functions to be jittable:
+        - Use jax.lax.scan for riccati recursion for finite horizon
+        - For infinite horizon, compare runtime of scipy vs jitted versions
+            - use jax.lax.while to run the riccati recursion until convergence
+    - Move cost function types to common modules?
+        - Only if it's useful for reuse, eg. Is it useful in other lqr functions?
 - Tasks:
     - Indirect methods (port / cleanup Kirk algorithms)
+        - Implement fully jax compliant versions of each method?
     - Direct Methods
+        - Same as indirect methods?
     - MPC
 - Short Tasks:
     - Create controllers module?

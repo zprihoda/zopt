@@ -1,3 +1,4 @@
+import jax.numpy as jnp
 import numpy as np
 import pytest
 
@@ -59,10 +60,10 @@ def test_infiniteHorizonIntegralLqr():
 
 def test_discreteFiniteHorizonLqr():
     N = 2
-    A = np.repeat(np.eye(2)[None, :, :], N, axis=0)
-    B = np.repeat(np.eye(2)[None, :, :], N, axis=0)
-    Q = np.repeat(np.eye(2)[None, :, :], N, axis=0)
-    R = np.repeat(np.eye(2)[None, :, :], N, axis=0)
+    A = jnp.repeat(jnp.eye(2)[None, :, :], N, axis=0)
+    B = jnp.repeat(jnp.eye(2)[None, :, :], N, axis=0)
+    Q = jnp.repeat(jnp.eye(2)[None, :, :], N, axis=0)
+    R = jnp.repeat(jnp.eye(2)[None, :, :], N, axis=0)
     K = lqr.discreteFiniteHorizonLqr(A, B, Q, R, N)
     assert K[1] == pytest.approx(0.5 * np.eye(2))
     assert K[0] == pytest.approx(0.6 * np.eye(2))
@@ -105,3 +106,6 @@ def test_proportionalFeedbackController():
     u, _ = lqr.proportionalFeedbackController(x, x0, u0, K)
     u_exp = np.array([-1])
     assert u == pytest.approx(u_exp)
+
+
+test_discreteFiniteHorizonLqr()

@@ -1,3 +1,5 @@
+import jax
+import jax.numpy as jnp
 import numpy as np
 import numpy.linalg as npl
 import scipy.linalg as spl
@@ -138,13 +140,7 @@ def infiniteHorizonIntegralLqr(
     return Ki, Kp
 
 
-def discreteFiniteHorizonLqr(
-    A: Callable[[int], np.ndarray],
-    B: Callable[[int], np.ndarray],
-    Q: Callable[[int], np.ndarray],
-    R: Callable[[int], np.ndarray],
-    N: int
-) -> np.ndarray:
+def discreteFiniteHorizonLqr(A: jnp.ndarray, B: jnp.ndarray, Q: jnp.ndarray, R: jnp.ndarray, N: int) -> np.ndarray:
     """
     Compute the finite horizon LQR gains by numerically integrating the LQR HJB equation
 
@@ -156,23 +152,23 @@ def discreteFiniteHorizonLqr(
 
     Arguments
     ---------
-        A : State-space state matrix as a function of time step: `A[k]`
-        B : State-space input matrix as a function of time step: `B[k]`
-        Q : State cost matrix as a function of time step: `Q[k]`
-        R : Control cost matrix as a function of time step: `R[k]`
+        A : State-space state matrix with time along the first axis: `A[k]`
+        B : State-space input matrix with time along the first axis: `B[k]`
+        Q : State cost matrix with time along the first axis: `Q[k]`
+        R : Control cost matrix with time along the first axis: `R[k]`
         N : Time step horizon
 
     Returns
     -------
         L : Optimal LQR gains indexed by time step: `L[k]`
     """
-    V = Q[-1]
-    nx, nu = B[0].shape
-    L = np.zeros((N, nu, nx))
-    for i in range(N):
-        k = N - (i + 1)
-        L[k] = npl.solve(R[k] + B[k].T @ V @ B[k], B[k].T @ V @ A[k])
-        V = Q[k] + L[k].T @ R[k] @ L[k] + (A[k] - B[k] @ L[k]).T @ V @ (A[k] - B[k] @ L[k])
+
+    def scan_f(V, k):
+        L = jnp.linalg.solve(R[k] + B[k].T @ V @ B[k], B[k].T @ V @ A[k])
+        V = Q[k] + L.T @ R[k] @ L + (A[k] - B[k] @ L).T @ V @ (A[k] - B[k] @ L)
+        return V, L
+
+    _, L = jax.lax.scan(scan_f, Q[-1], xs=jnp.arange(N), reverse=True)
     return L
 
 
