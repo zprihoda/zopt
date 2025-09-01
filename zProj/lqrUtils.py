@@ -3,7 +3,6 @@ import jax.numpy as jnp
 import numpy as np
 import numpy.linalg as npl
 import scipy.linalg as spl
-import scipy.integrate as spi
 
 from jax.experimental.ode import odeint
 from typing import Callable

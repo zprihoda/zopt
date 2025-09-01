@@ -106,6 +106,3 @@ def test_proportionalFeedbackController():
     u, _ = lqr.proportionalFeedbackController(x, x0, u0, K)
     u_exp = np.array([-1])
     assert u == pytest.approx(u_exp)
-
-
-test_finiteHorizonLqr()
