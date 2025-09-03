@@ -46,8 +46,10 @@ class QuadraticCostFunction(NamedTuple):
         return jax.vmap(lambda x0, u0: cls.from_function(costFun, x0, u0))(xTraj, uTraj)
 
     def __call__(self, x, u):
+        if self.c.shape != ():
+            raise ValueError("`call` is only allowed for single cost functions")
         c, c_x, c_u, c_xx, c_xu, c_uu = self
-        return c + c_x.T @ x + c_u.T @ u + 0.5 * (x.T @ c_xx @ x + 2 * x.T @ c_xu @ u + u.T @ c_uu @ u)
+        return c + c_x @ x + c_u @ u + 0.5 * (x.T @ c_xx @ x + 2 * x.T @ c_xu @ u + u.T @ c_uu @ u)
 
     def __getitem__(self, idx):
         return jax.tree.map(lambda x: x[idx], self)
@@ -67,9 +69,17 @@ class AffineDynamics(NamedTuple):
         f_u = jax.jacobian(dynFun, 1)(x0, u0)
         return cls(f, f_x, f_u)
 
+    @classmethod
+    def from_trajectory(cls, dynFun, xTraj, uTraj):
+        """Second order Taylor series expansion of cost function `c(x,u)` about (xTraj,uTraj)"""
+        return jax.vmap(lambda x0, u0: cls.from_function(dynFun, x0, u0))(xTraj, uTraj)
+
     def __call__(self, x, u):
         f, f_x, f_u = self
         return f + f_x @ x + f_u @ u
+
+    def __getitem__(self, idx):
+        return jax.tree.map(lambda x: x[idx], self)
 
 
 ## iLQR and DDP

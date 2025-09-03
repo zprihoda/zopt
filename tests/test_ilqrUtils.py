@@ -148,6 +148,23 @@ def test_AffineDynamics_base():
     assert dynamics(x, u) == pytest.approx(xOut_exp)
 
 
+def test_AffineDynamics_getItem():
+    f = jnp.array([0, 1])
+    f_x = jnp.eye(2)
+    f_u = jnp.eye(2)
+    dyn = ilqr.AffineDynamics(f, f_x, f_u)
+
+    dyn0 = dyn[0]
+    assert dyn0.f == f[0]
+    assert jnp.all(dyn0.f_x == f_x[0])
+    assert jnp.all(dyn0.f_u == f_u[0])
+
+    dyn1 = dyn[1]
+    assert dyn1.f == f[1]
+    assert jnp.all(dyn1.f_x == f_x[1])
+    assert jnp.all(dyn1.f_u == f_u[1])
+
+
 def test_AffineDynamics_fromFunction():
     f = jnp.array([1, 1])
     f_x = jnp.array([[2, 3], [4, 5]])
@@ -160,6 +177,23 @@ def test_AffineDynamics_fromFunction():
     assert jnp.all(dynamics.f == f)
     assert jnp.all(dynamics.f_x == f_x)
     assert jnp.all(dynamics.f_u == f_u)
+
+
+def test_AffineDynamics_fromTrajectory():
+    f = jnp.array([1, 1])
+    f_x = jnp.array([[2, 3], [4, 5]])
+    f_u = jnp.array([[6], [7]])
+    dynFun = lambda x, u: f + f_x @ x + f_u @ u + 0.5 * x.T @ x
+    x0 = jnp.array([[0., 0], [1, 0]])
+    u0 = jnp.zeros((2, 1))
+
+    dynamics = ilqr.AffineDynamics.from_trajectory(dynFun, x0, u0)
+    assert jnp.all(dynamics[0].f == f)
+    assert jnp.all(dynamics[0].f_x == f_x)
+    assert jnp.all(dynamics[0].f_u == f_u)
+    assert jnp.all(dynamics[1].f == dynFun(x0[1], u0[1]))
+    assert jnp.all(dynamics[1].f_x == f_x + x0[1])
+    assert jnp.all(dynamics[1].f_u == f_u)
 
 
 def test_iLqrDefaultInit():
