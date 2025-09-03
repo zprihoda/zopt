@@ -5,10 +5,16 @@ A random collection of small projects
 ### All
 - ilqr-jax:
     - Update iLQR to be fully jittable, see LQR Variants from stanford examples for help
+        - Migrate from class based to function based.
+            - More aligned with jax, see: https://docs.jax.dev/en/latest/jep/18137-numpy-scipy-scope.html#axis-5-functional-vs-object-oriented-apis
+            - Can do one function at a time
+        - Implement each individual function in a jax compliant manner:
+            - backward_riccati_step
+            - computeQ, consider co
+            - Use jax.lax.scan to implement
     - Update other lqr functions to be jittable:
-        - Use jax.lax.scan for riccati recursion for finite horizon
+        - Consider jax based implementations of infinite horizon lqr (continuous and discrete)
         - For infinite horizon, compare runtime of scipy vs jitted versions
-            - use jax.lax.while to run the riccati recursion until convergence
     - Move cost function types to common modules?
         - Only if it's useful for reuse, eg. Is it useful in other lqr functions?
 - Tasks:

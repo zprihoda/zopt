@@ -40,9 +40,17 @@ class QuadraticCostFunction(NamedTuple):
         ((c_xx, c_xu), (_, c_uu)) = jax.hessian(costFun, (0, 1))(x0, u0)
         return cls(c, c_x, c_u, c_xx, c_xu, c_uu)
 
+    @classmethod
+    def from_trajectory(cls, costFun, xTraj, uTraj):
+        """Second order Taylor series expansion of cost function `c(x,u)` about (xTraj,uTraj)"""
+        return jax.vmap(lambda x0, u0: cls.from_function(costFun, x0, u0))(xTraj, uTraj)
+
     def __call__(self, x, u):
         c, c_x, c_u, c_xx, c_xu, c_uu = self
         return c + c_x.T @ x + c_u.T @ u + 0.5 * (x.T @ c_xx @ x + 2 * x.T @ c_xu @ u + u.T @ c_uu @ u)
+
+    def __getitem__(self, idx):
+        return jax.tree.map(lambda x: x[idx], self)
 
 
 class AffineDynamics(NamedTuple):

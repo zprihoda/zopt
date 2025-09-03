@@ -55,6 +55,32 @@ def test_QuadraticCostFunction_base():
     assert C(x, u) == pytest.approx(C_exp)
 
 
+def test_QuadraticCostFunction_getItem():
+    c = jnp.array([1, 1])
+    c_x = jnp.eye(2)
+    c_u = jnp.eye(2)
+    c_xx = jnp.array([jnp.eye(2), jnp.zeros((2, 2))])
+    c_xu = jnp.array([jnp.eye(2), jnp.zeros((2, 2))])
+    c_uu = jnp.array([jnp.eye(2), jnp.zeros((2, 2))])
+    C = ilqr.QuadraticCostFunction(c, c_x, c_u, c_xx, c_xu, c_uu)
+
+    C0 = C[0]
+    assert C0.c == c[0]
+    assert jnp.all(C0.c_x == c_x[0])
+    assert jnp.all(C0.c_u == c_u[0])
+    assert jnp.all(C0.c_xx == c_xx[0])
+    assert jnp.all(C0.c_xu == c_xu[0])
+    assert jnp.all(C0.c_uu == c_uu[0])
+
+    C1 = C[1]
+    assert C1.c == c[1]
+    assert jnp.all(C1.c_x == c_x[1])
+    assert jnp.all(C1.c_u == c_u[1])
+    assert jnp.all(C1.c_xx == c_xx[1])
+    assert jnp.all(C1.c_xu == c_xu[1])
+    assert jnp.all(C1.c_uu == c_uu[1])
+
+
 def test_QuadraticCostFunction_fromFunction():
     c = 1
     c_x = jnp.array([1, 2])
@@ -73,6 +99,38 @@ def test_QuadraticCostFunction_fromFunction():
     assert jnp.all(C.c_xx == c_xx)
     assert jnp.all(C.c_xu == c_xu)
     assert jnp.all(C.c_uu == c_uu)
+
+
+def test_QuadraticCostFunction_fromTrajectory():
+    c = 1
+    c_x = jnp.array([1, 2])
+    c_u = jnp.array([2, 1])
+    c_xx = jnp.eye(2)
+    c_xu = jnp.array([[1, 2], [3, 4]])
+    c_uu = jnp.eye(2)
+    x0 = jnp.array([[0., 0], [1, 0]])
+    u0 = jnp.zeros((2, 2))
+    costFun = lambda x, u: c + c_x.T @ x + c_u.T @ u + 0.5 * (x.T @ c_xx @ x + 2 * x.T @ c_xu @ u + u.T @ c_uu @ u)
+
+    C = ilqr.QuadraticCostFunction.from_trajectory(costFun, x0, u0)
+
+    C0 = C[0]
+    assert C0.c == c
+    assert jnp.all(C0.c_x == c_x)
+    assert jnp.all(C0.c_u == c_u)
+    assert jnp.all(C0.c_xx == c_xx)
+    assert jnp.all(C0.c_xu == c_xu)
+    assert jnp.all(C0.c_uu == c_uu)
+
+    C1 = C[1]
+    x1 = x0[1]
+    u1 = u0[1]
+    assert C1.c == costFun(x1, u1)
+    assert jnp.all(C1.c_x == c_x + c_xx @ x1)
+    assert jnp.all(C1.c_u == c_u + c_xu.T @ x1)
+    assert jnp.all(C1.c_xx == c_xx)
+    assert jnp.all(C1.c_xu == c_xu)
+    assert jnp.all(C1.c_uu == c_uu)
 
 
 def test_AffineDynamics_base():
