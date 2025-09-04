@@ -19,19 +19,21 @@ def costFun(k, x, u):
 def terminalCost(x):
     return np.sum(x**2)
 
+
 def test_Trajectory():
     m = 2
     n = 3
     N = 4
-    xTraj = jnp.ones((N,n))
-    uTraj = jnp.zeros((N,m))
-    traj = ilqr.Trajectory(xTraj,uTraj)
+    xTraj = jnp.ones((N, n))
+    uTraj = jnp.zeros((N, m))
+    traj = ilqr.Trajectory(xTraj, uTraj)
     assert jnp.all(traj.xTraj == xTraj)
     assert jnp.all(traj.uTraj == uTraj)
 
     for i in range(N):
         assert jnp.all(traj[i].xTraj == xTraj[i])
         assert jnp.all(traj[i].uTraj == uTraj[i])
+
 
 def test_QuadraticValueFunction():
     v = jnp.array(1.)

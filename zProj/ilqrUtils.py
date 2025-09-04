@@ -6,6 +6,7 @@ import warnings
 from typing import Callable, NamedTuple
 from zProj.jaxUtils import maybeJit, maybeJitCls
 
+
 class Trajectory(NamedTuple):
     """Trajectory tuple: (xTraj, uTraj)"""
     xTraj: jnp.ndarray
@@ -82,7 +83,7 @@ class AffineDynamics(NamedTuple):
     @classmethod
     def from_trajectory(cls, dynFun: Callable[[jnp.ndarray, jnp.ndarray], jnp.ndarray], traj: Trajectory):
         """Second order Taylor series expansion of cost function `c(x,u)` about (xTraj,uTraj)"""
-        xTraj,uTraj = traj
+        xTraj, uTraj = traj
         return jax.vmap(lambda x0, u0: cls.from_function(dynFun, x0, u0))(xTraj, uTraj)
 
     def __call__(self, x: jnp.ndarray, u: jnp.ndarray, k: int = None):
