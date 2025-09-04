@@ -45,14 +45,15 @@ class QuadraticCostFunction(NamedTuple):
         """Second order Taylor series expansion of cost function `c(x,u)` about (xTraj,uTraj)"""
         return jax.vmap(lambda x0, u0: cls.from_function(costFun, x0, u0))(xTraj, uTraj)
 
-    def __call__(self, x, u):
-        if self.c.shape != ():
-            raise ValueError("`call` is only allowed for single cost functions")
+    def __call__(self, x, u, k=None):
         c, c_x, c_u, c_xx, c_xu, c_uu = self
-        return c + c_x @ x + c_u @ u + 0.5 * (x.T @ c_xx @ x + 2 * x.T @ c_xu @ u + u.T @ c_uu @ u)
+        if k is None and c.ndim != 0:
+            raise ValueError("Must specify index for multi-dimensional cost")
+        return c + c_x @ x + c_u @ u + 0.5 * (x.T @ c_xx @ x + 2 * x.T @ c_xu @ u +
+                                              u.T @ c_uu @ u) if k is None else self[k](x, u)
 
-    def __getitem__(self, idx):
-        return jax.tree.map(lambda x: x[idx], self)
+    def __getitem__(self, k):
+        return jax.tree.map(lambda x: x[k], self)
 
 
 class AffineDynamics(NamedTuple):
@@ -74,14 +75,28 @@ class AffineDynamics(NamedTuple):
         """Second order Taylor series expansion of cost function `c(x,u)` about (xTraj,uTraj)"""
         return jax.vmap(lambda x0, u0: cls.from_function(dynFun, x0, u0))(xTraj, uTraj)
 
-    def __call__(self, x, u):
-        if self.c.shape != ():
-            raise ValueError("`call` is only allowed for single cost functions")
+    def __call__(self, x, u, k=None):
         f, f_x, f_u = self
-        return f + f_x @ x + f_u @ u
+        if k is None and f.ndim != 1:
+            raise ValueError("Must specify index for multi-dimensional dynamics")
+        return f + f_x @ x + f_u @ u if k is None else self[k](x, u)
 
-    def __getitem__(self, idx):
-        return jax.tree.map(lambda x: x[idx], self)
+    def __getitem__(self, k):
+        return jax.tree.map(lambda x: x[k], self)
+
+
+class AffinePolicy(NamedTuple):
+    l: jnp.array
+    L: jnp.array
+
+    def __call__(self, x, k=None):
+        l, L = self
+        if k is None and l.ndim != 1:
+            raise ValueError("Must specify index for multi-dimensional policy")
+        return l + L @ x if k is None else self[k](x)
+
+    def __getitem__(self, key):
+        return jax.tree_map(lambda x: x[key], self)
 
 
 ## iLQR and DDP
