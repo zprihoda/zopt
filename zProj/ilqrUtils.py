@@ -19,7 +19,9 @@ class Trajectory(NamedTuple):
 class CostFunction(NamedTuple):
     """
     Cost function tuple: (runningCost, terminalCost)
+    ```
     J = terminalCost(x[N]) + sum(runningCost(x[i],u[i]))
+    ```
     """
     runningCost: Callable[[jnp.ndarray, jnp.ndarray], float]
     terminalCost: Callable[[jnp.ndarray], float]
@@ -32,9 +34,8 @@ class CostFunction(NamedTuple):
     def __call__(self, traj: Trajectory, k=None):
         runningCost, terminalCost = self
         xTraj, uTraj = traj
-        return jax.vmap(runningCost)(xTraj[:-1], uTraj[:-1]) + terminalCost(xTraj[-1]) if k is None else runningCost(
-            xTraj[k], uTraj[k]
-        )
+        return jax.vmap(runningCost)(xTraj[:-1],
+                                     uTraj) + terminalCost(xTraj[-1]) if k is None else runningCost(xTraj[k], uTraj[k])
 
 
 class QuadraticValueFunction(NamedTuple):

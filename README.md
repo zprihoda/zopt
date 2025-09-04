@@ -2,6 +2,22 @@
 A random collection of small projects
 
 ## TODO:
+### ilqr-jax
+- Add missing tests
+    - test_AffinePolicy
+    - test_TrajectoryRollout
+    - Replace old tests as we go
+- Update `QuadraticCostFunction.from_function` and `from_trajectory` to use CostFunction class as input
+- Implement:
+    - forward pass + test
+    - ricatti_step + test
+    - backward_pass + test
+        - For ensuring positive definite, consider a hybrid of the paper vs Stanford method?
+            - Actually Stanford method may just be the fastest, as the paper version has to compute the eigenvaues every iteration anyway...
+            - Unless we can implement a recursive eigenvalue update method?
+- Consider updating functions that take (x0,u0) and convert to use Trajectory?
+    - May make more sense if we rename Trajectory to StateActionPair? But is that better than current approach? Seems confusing?
+
 ### All
 - ilqr-jax:
     - Update iLQR to be fully jittable, see LQR Variants from stanford examples for help

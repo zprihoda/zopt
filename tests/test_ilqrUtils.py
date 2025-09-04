@@ -8,24 +8,12 @@ import jax
 jax.config.update("jax_enable_x64", True)  # TEMP: Remove once iLQR line search improved
 
 
-def dynFun(k, x, u):
-    return x + u
-
-
-def costFun(k, x, u):
-    return np.sum(x**2) + np.sum(u**2)
-
-
-def terminalCost(x):
-    return np.sum(x**2)
-
-
 def test_Trajectory():
     m = 2
     n = 3
     N = 4
-    xTraj = jnp.ones((N, n))
-    uTraj = jnp.zeros((N, m))
+    xTraj = jnp.arange((N + 1) * n).reshape((N + 1, n))
+    uTraj = jnp.arange(N * m).reshape((N, m))
     traj = ilqr.Trajectory(xTraj, uTraj)
     assert jnp.all(traj.xTraj == xTraj)
     assert jnp.all(traj.uTraj == uTraj)
@@ -33,6 +21,30 @@ def test_Trajectory():
     for i in range(N):
         assert jnp.all(traj[i].xTraj == xTraj[i])
         assert jnp.all(traj[i].uTraj == uTraj[i])
+    assert jnp.all(traj[i + 1].xTraj == xTraj[N])
+
+
+def test_CostFunction():
+    runningCost = lambda x, u: x @ x + u @ u
+    terminalCost = lambda x: 2 * x @ x
+    CostFun = ilqr.CostFunction(runningCost, terminalCost)
+
+    traj = ilqr.Trajectory(jnp.array([[1, 2], [3, 4]]), jnp.array([[1, 1]]))
+    j0 = CostFun(traj, k=0)
+    J = CostFun(traj)
+    assert j0 == 7
+    assert J == 57
+
+
+def test_CostFunction_runningOnly():
+    runningCost = lambda x, u: x @ x + u @ u
+    CostFun = ilqr.CostFunction.runningOnly(runningCost, 2)
+
+    traj = ilqr.Trajectory(jnp.array([[1, 2], [3, 4]]), jnp.array([[1, 1]]))
+    j0 = CostFun(traj, k=0)
+    J = CostFun(traj)
+    assert j0 == 7
+    assert J == 32
 
 
 def test_QuadraticValueFunction():
@@ -213,7 +225,20 @@ def test_AffineDynamics_fromTrajectory():
     assert jnp.all(dynamics[1].f_u == f_u)
 
 
-def test_iLqrDefaultInit():
+### OLD Tests
+def dynFun(k, x, u):
+    return x + u
+
+
+def costFun(k, x, u):
+    return np.sum(x**2) + np.sum(u**2)
+
+
+def terminalCost(x):
+    return np.sum(x**2)
+
+
+def old_test_iLqrDefaultInit():
     x0 = np.array([1, 2])
     N = 3
     u = np.zeros((N, 2))
@@ -222,7 +247,7 @@ def test_iLqrDefaultInit():
     assert prob.cf(x0) == 5  # check that terminal cost is computed correctly
 
 
-def test_iLqrSolve():
+def old_test_iLqrSolve():
     """Check that solve runs without error"""
 
     x0 = np.array([1, 2])
@@ -233,7 +258,7 @@ def test_iLqrSolve():
     assert LArr.shape == (N, 2, 2)
 
 
-def test_ddpDefaultInit():
+def old_test_ddpDefaultInit():
     x0 = np.array([1, 2])
     N = 3
     u = np.zeros((N, 2))
@@ -242,7 +267,7 @@ def test_ddpDefaultInit():
     assert prob.cf(x0) == 5  # check that terminal cost is computed correctly
 
 
-def test_ddpSolve():
+def old_test_ddpSolve():
     """Check that solve runs without error"""
 
     x0 = np.array([1, 2])
