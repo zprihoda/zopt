@@ -27,7 +27,7 @@ class CostFunction(NamedTuple):
     terminalCost: Callable[[jnp.ndarray], float]
 
     @classmethod
-    def runningOnly(cls, runningCost: Callable[[jnp.ndarray, jnp.ndarray], float], m: int):
+    def runningOnly(cls, runningCost: Callable[[jnp.ndarray, jnp.ndarray], float], m: int = 1):
         terminalCost = lambda x: runningCost(x, jnp.zeros(m))
         return cls(runningCost, terminalCost)
 
@@ -64,15 +64,16 @@ class QuadraticCostFunction(NamedTuple):
     c_uu: jnp.ndarray
 
     @classmethod
-    def from_function(cls, costFun: Callable[[jnp.ndarray, jnp.ndarray], float], x0: jnp.ndarray, u0: jnp.ndarray):
+    def from_function(cls, costFun: CostFunction, x0: jnp.ndarray, u0: jnp.ndarray):
         """Second order Taylor series expansion of cost function `c(x,u)` about (x0,u0)"""
-        c = costFun(x0, u0)
-        c_x, c_u = jax.jacobian(costFun, argnums=(0, 1))(x0, u0)
-        ((c_xx, c_xu), (_, c_uu)) = jax.hessian(costFun, (0, 1))(x0, u0)
+        runningCost = costFun.runningCost
+        c = runningCost(x0, u0)
+        c_x, c_u = jax.jacobian(runningCost, argnums=(0, 1))(x0, u0)
+        ((c_xx, c_xu), (_, c_uu)) = jax.hessian(runningCost, (0, 1))(x0, u0)
         return cls(c, c_x, c_u, c_xx, c_xu, c_uu)
 
     @classmethod
-    def from_trajectory(cls, costFun: Callable[[jnp.ndarray, jnp.ndarray], float], traj: Trajectory):
+    def from_trajectory(cls, costFun: CostFunction, traj: Trajectory):
         """Second order Taylor series expansion of cost function `c(x,u)` about (xTraj,uTraj)"""
         xTraj, uTraj = traj
         return jax.vmap(lambda x0, u0: cls.from_function(costFun, x0, u0))(xTraj, uTraj)

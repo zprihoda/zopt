@@ -7,7 +7,6 @@ A random collection of small projects
     - test_AffinePolicy
     - test_TrajectoryRollout
     - Replace old tests as we go
-- Update `QuadraticCostFunction.from_function` and `from_trajectory` to use CostFunction class as input
 - Implement:
     - forward pass + test
     - ricatti_step + test

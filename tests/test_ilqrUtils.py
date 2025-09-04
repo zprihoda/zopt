@@ -117,7 +117,10 @@ def test_QuadraticCostFunction_fromFunction():
     c_uu = jnp.eye(2)
     x0 = jnp.zeros(2)
     u0 = jnp.zeros(2)
-    costFun = lambda x, u: c + c_x.T @ x + c_u.T @ u + 0.5 * (x.T @ c_xx @ x + 2 * x.T @ c_xu @ u + u.T @ c_uu @ u)
+
+    costFun = ilqr.CostFunction.runningOnly(
+        lambda x, u: c + c_x.T @ x + c_u.T @ u + 0.5 * (x.T @ c_xx @ x + 2 * x.T @ c_xu @ u + u.T @ c_uu @ u)
+    )
     C = ilqr.QuadraticCostFunction.from_function(costFun, x0, u0)
 
     assert C.c == c
@@ -138,8 +141,9 @@ def test_QuadraticCostFunction_fromTrajectory():
     x0 = jnp.array([[0., 0], [1, 0]])
     u0 = jnp.zeros((2, 2))
     traj = ilqr.Trajectory(x0, u0)
-    costFun = lambda x, u: c + c_x.T @ x + c_u.T @ u + 0.5 * (x.T @ c_xx @ x + 2 * x.T @ c_xu @ u + u.T @ c_uu @ u)
-
+    costFun = ilqr.CostFunction.runningOnly(
+        lambda x, u: c + c_x.T @ x + c_u.T @ u + 0.5 * (x.T @ c_xx @ x + 2 * x.T @ c_xu @ u + u.T @ c_uu @ u)
+    )
     C = ilqr.QuadraticCostFunction.from_trajectory(costFun, traj)
 
     C0 = C[0]
@@ -152,8 +156,7 @@ def test_QuadraticCostFunction_fromTrajectory():
 
     C1 = C[1]
     x1 = x0[1]
-    u1 = u0[1]
-    assert C1.c == costFun(x1, u1)
+    assert C1.c == costFun(traj, k=1)
     assert jnp.all(C1.c_x == c_x + c_xx @ x1)
     assert jnp.all(C1.c_u == c_u + c_xu.T @ x1)
     assert jnp.all(C1.c_xx == c_xx)
