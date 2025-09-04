@@ -19,6 +19,19 @@ def costFun(k, x, u):
 def terminalCost(x):
     return np.sum(x**2)
 
+def test_Trajectory():
+    m = 2
+    n = 3
+    N = 4
+    xTraj = jnp.ones((N,n))
+    uTraj = jnp.zeros((N,m))
+    traj = ilqr.Trajectory(xTraj,uTraj)
+    assert jnp.all(traj.xTraj == xTraj)
+    assert jnp.all(traj.uTraj == uTraj)
+
+    for i in range(N):
+        assert jnp.all(traj[i].xTraj == xTraj[i])
+        assert jnp.all(traj[i].uTraj == uTraj[i])
 
 def test_QuadraticValueFunction():
     v = jnp.array(1.)
@@ -110,9 +123,10 @@ def test_QuadraticCostFunction_fromTrajectory():
     c_uu = jnp.eye(2)
     x0 = jnp.array([[0., 0], [1, 0]])
     u0 = jnp.zeros((2, 2))
+    traj = ilqr.Trajectory(x0, u0)
     costFun = lambda x, u: c + c_x.T @ x + c_u.T @ u + 0.5 * (x.T @ c_xx @ x + 2 * x.T @ c_xu @ u + u.T @ c_uu @ u)
 
-    C = ilqr.QuadraticCostFunction.from_trajectory(costFun, x0, u0)
+    C = ilqr.QuadraticCostFunction.from_trajectory(costFun, traj)
 
     C0 = C[0]
     assert C0.c == c
@@ -186,8 +200,9 @@ def test_AffineDynamics_fromTrajectory():
     dynFun = lambda x, u: f + f_x @ x + f_u @ u + 0.5 * x.T @ x
     x0 = jnp.array([[0., 0], [1, 0]])
     u0 = jnp.zeros((2, 1))
+    traj = ilqr.Trajectory(x0, u0)
 
-    dynamics = ilqr.AffineDynamics.from_trajectory(dynFun, x0, u0)
+    dynamics = ilqr.AffineDynamics.from_trajectory(dynFun, traj)
     assert jnp.all(dynamics[0].f == f)
     assert jnp.all(dynamics[0].f_x == f_x)
     assert jnp.all(dynamics[0].f_u == f_u)
