@@ -100,14 +100,34 @@ class AffinePolicy(NamedTuple):
     l: jnp.ndarray
     L: jnp.ndarray
 
-    def __call__(self, x: jnp.ndarray, k: int = None):
+    def __call__(self, x: jnp.ndarray, k: int = None, alpha: float = 1):
         l, L = self
         if k is None and l.ndim != 1:
             raise ValueError("Must specify index for multi-dimensional policy")
-        return l + L @ x if k is None else self[k](x)
+        return alpha * l + L @ x if k is None else self[k](x)
 
     def __getitem__(self, k: int):
         return jax.tree_map(lambda x: x[k], self)
+
+
+def trajectoryRollout(
+    x0: jnp.ndarray,
+    dynFun: Callable[[jnp.ndarray, jnp.ndarray], jnp.ndarray],
+    policy: AffinePolicy,
+    trajPrev: Trajectory,
+    alpha: float = 1
+):
+    xPrev, uPrev = trajPrev
+    N = uPrev.shape[0]
+
+    def step(x, k):
+        dx = x - xPrev[k]
+        u = policy(dx, k=k, alpha=alpha) + uPrev[k]
+        xOut = dynFun(x, u)
+        return xOut, (xOut, u)
+
+    _, (xTraj, uTraj) = jax.lax.scan(step, x0, N)
+    return Trajectory(xTraj, uTraj)
 
 
 ## iLQR and DDP
