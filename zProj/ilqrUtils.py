@@ -16,6 +16,27 @@ class Trajectory(NamedTuple):
         return jax.tree.map(lambda x: x[k], self)
 
 
+class CostFunction(NamedTuple):
+    """
+    Cost function tuple: (runningCost, terminalCost)
+    J = terminalCost(x[N]) + sum(runningCost(x[i],u[i]))
+    """
+    runningCost: Callable[[jnp.ndarray, jnp.ndarray], float]
+    terminalCost: Callable[[jnp.ndarray], float]
+
+    @classmethod
+    def runningOnly(cls, runningCost: Callable[[jnp.ndarray, jnp.ndarray], float], m: int):
+        terminalCost = lambda x: runningCost(x, jnp.zeros(m))
+        return cls(runningCost, terminalCost)
+
+    def __call__(self, traj: Trajectory, k=None):
+        runningCost, terminalCost = self
+        xTraj, uTraj = traj
+        return jax.vmap(runningCost)(xTraj[:-1], uTraj[:-1]) + terminalCost(xTraj[-1]) if k is None else runningCost(
+            xTraj[k], uTraj[k]
+        )
+
+
 class QuadraticValueFunction(NamedTuple):
     """Value function of the form: `V(x) = v + v_x.T @ x + 0.5 * (x.T @ v_xx @ x)`"""
     v: jnp.ndarray
@@ -127,7 +148,18 @@ def trajectoryRollout(
         return xOut, (xOut, u)
 
     _, (xTraj, uTraj) = jax.lax.scan(step, x0, N)
+    xTraj = jnp.concatenate([x0[None, :], xTraj])
     return Trajectory(xTraj, uTraj)
+
+
+def forwardPass(
+    x0: jnp.ndarray,
+    dynFun: Callable[[jnp.ndarray, jnp.ndarray], jnp.ndarray],
+    costFun: CostFunction,
+    policy: AffinePolicy,
+    trajPrev: Trajectory
+):
+    pass
 
 
 ## iLQR and DDP
