@@ -75,6 +75,8 @@ class AffineDynamics(NamedTuple):
         return jax.vmap(lambda x0, u0: cls.from_function(dynFun, x0, u0))(xTraj, uTraj)
 
     def __call__(self, x, u):
+        if self.c.shape != ():
+            raise ValueError("`call` is only allowed for single cost functions")
         f, f_x, f_u = self
         return f + f_x @ x + f_u @ u
 
