@@ -175,14 +175,18 @@ def forwardPass(
     alphaMin: float = 0.5**16
 ):
 
-    def forwardPassStep(J, traj, alpha):
+    def forwardPassStep(loopVars):
+        J, traj, alpha = loopVars
         trajNew = trajectoryRollout(x0, dynFun, policy, trajPrev, alpha=alpha)
         JNew = costFun(trajNew)
         alpha = alpha * 0.5
         return (JNew, trajNew, alpha)
 
-    cond = lambda J, traj, alpha: (J - JPrev) / dJFun(alpha) <= cLineSearch or alpha <= alphaMin
-    J, traj, alpha = jax.lax.while_loop(cond, forwardPassStep, (JPrev, trajPrev, 1))
+    def whileCond(loopVars):
+        J, traj, alpha = loopVars
+        return ((J - JPrev) / dJFun(alpha) <= cLineSearch) | (alpha <= alphaMin)
+
+    J, traj, alpha = jax.lax.while_loop(whileCond, forwardPassStep, (JPrev, trajPrev, 1.))
     return traj, J
 
 

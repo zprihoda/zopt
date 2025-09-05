@@ -1,9 +1,8 @@
+import jax
 import jax.numpy as jnp
 import numpy as np
 import pytest
 import zProj.ilqrUtils as ilqr
-
-import jax
 
 jax.config.update("jax_enable_x64", True)  # TEMP: Remove once iLQR line search improved
 
@@ -279,6 +278,21 @@ def test_trajectoryRollout():
     assert jnp.all(uTraj == jnp.array([0, 0.5, 1])[:, None])
 
 
+def test_forwardPass():
+    """test that forward pass runs, no actual functional test"""
+    x0 = jnp.array([1., 1])
+    N = 3
+    A = jnp.array([[1, 0], [1, 1]])
+    B = jnp.array([[0], [1]])
+    dynFun = lambda x, u: A @ x + B @ u
+    costFun = lambda traj: jnp.sum(traj.xTraj**2) + jnp.sum(traj.uTraj**2)
+    policy = lambda x, k, alpha: jnp.array([-alpha])
+    trajPrev = ilqr.Trajectory(jnp.repeat(x0[None, :], N + 1, axis=0), jnp.zeros((N, 1)))
+    dJFun = lambda alpha: 1
+    JPrev = 1
+    traj, JNew = ilqr.forwardPass(x0, dynFun, costFun, policy, trajPrev, dJFun, JPrev)
+
+
 ### OLD Tests
 def dynFun(k, x, u):
     return x + u
@@ -330,3 +344,6 @@ def old_test_ddpSolve():
     prob = ilqr.DDP(dynFun, costFun, x0, u, terminalCostFun=terminalCost)
     x, u, LArr = prob.solve()
     assert LArr.shape == (N, 2, 2)
+
+
+test_forwardPass()
