@@ -3,10 +3,6 @@ A random collection of small projects
 
 ## TODO:
 ### ilqr-jax
-- Add missing tests
-    - test_AffinePolicy
-    - test_TrajectoryRollout
-    - Replace old tests as we go
 - Implement:
     - forward pass + test
     - ricatti_step + test

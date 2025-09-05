@@ -133,6 +133,15 @@ class AffinePolicy(NamedTuple):
         return jax.tree.map(lambda x: x[k], self)
 
 
+class QuadraticDeltaCost(NamedTuple):
+    dJ_lin: float
+    dJ_quad: float
+
+    def __call__(self, alpha):
+        dJ_lin, dJ_quad = self
+        return alpha * (dJ_lin + alpha * dJ_quad)
+
+
 def trajectoryRollout(
     x0: jnp.ndarray,
     dynFun: Callable[[jnp.ndarray, jnp.ndarray], jnp.ndarray],
@@ -143,13 +152,13 @@ def trajectoryRollout(
     xPrev, uPrev = trajPrev
     N = uPrev.shape[0]
 
-    def step(x, k):
+    def trajectoryStep(x, k):
         dx = x - xPrev[k]
         u = policy(dx, k=k, alpha=alpha) + uPrev[k]
         xOut = dynFun(x, u)
         return xOut, (xOut, u)
 
-    _, (xTraj, uTraj) = jax.lax.scan(step, x0, jnp.arange(N))
+    _, (xTraj, uTraj) = jax.lax.scan(trajectoryStep, x0, jnp.arange(N))
     xTraj = jnp.concatenate([x0[None, :], xTraj])
     return Trajectory(xTraj, uTraj)
 
@@ -159,9 +168,44 @@ def forwardPass(
     dynFun: Callable[[jnp.ndarray, jnp.ndarray], jnp.ndarray],
     costFun: CostFunction,
     policy: AffinePolicy,
+    trajPrev: Trajectory,
+    dJFun: QuadraticDeltaCost,
+    JPrev: float,
+    cLineSearch: float = 0.5,
+    alphaMin: float = 0.5**16
+):
+
+    def forwardPassStep(J, traj, alpha):
+        trajNew = trajectoryRollout(x0, dynFun, policy, trajPrev, alpha=alpha)
+        JNew = costFun(trajNew)
+        alpha = alpha * 0.5
+        return (JNew, trajNew, alpha)
+
+    cond = lambda J, traj, alpha: (J - JPrev) / dJFun(alpha) <= cLineSearch or alpha <= alphaMin
+    J, traj, alpha = jax.lax.while_loop(cond, forwardPassStep, (JPrev, trajPrev, 1))
+    return traj, J
+
+
+def forwardPass2(
+    x0: jnp.ndarray,
+    dynFun: Callable[[jnp.ndarray, jnp.ndarray], jnp.ndarray],
+    costFun: CostFunction,
+    policy: AffinePolicy,
     trajPrev: Trajectory
 ):
-    pass
+    """Alternate forward pass; generated trajectories for fixed alphas and select minimum cost trajectory"""
+
+    def forwardPassInner(alpha):
+        trajNew = trajectoryRollout(x0, dynFun, policy, trajPrev, alpha=alpha)
+        JNew = costFun(trajNew)
+        return (JNew, trajNew)
+
+    alphaArr = 0.5**jnp.arange(16)
+    (JArr, trajArr) = jax.vmap(forwardPassInner)(alphaArr)
+    idx = jnp.argmin(JArr)
+    traj = trajArr[idx]
+    J = JArr[idx]
+    return traj, J
 
 
 ## iLQR and DDP
