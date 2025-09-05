@@ -253,6 +253,14 @@ def test_AffinePolicy_multi():
     assert jnp.all(policy(x, k=1) == l[1])
 
 
+def test_QuadraticDeltaCost():
+    dJ_lin = 1
+    dJ_quad = 2
+    dJFun = ilqr.QuadraticDeltaCost(dJ_lin, dJ_quad)
+    assert dJFun(1) == 3
+    assert dJFun(0.5) == 1
+
+
 def test_trajectoryRollout():
     N = 3
     dynFun = lambda x, u: x + u
