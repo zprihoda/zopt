@@ -130,7 +130,7 @@ class AffinePolicy(NamedTuple):
         return alpha * l + L @ x if k is None else self[k](x)
 
     def __getitem__(self, k: int):
-        return jax.tree_map(lambda x: x[k], self)
+        return jax.tree.map(lambda x: x[k], self)
 
 
 def trajectoryRollout(

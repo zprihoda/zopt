@@ -228,6 +228,31 @@ def test_AffineDynamics_fromTrajectory():
     assert jnp.all(dynamics[1].f_u == f_u)
 
 
+def test_AffinePolicy_base():
+    l = jnp.array([1, 2])
+    L = jnp.array([[1, 2], [3, 4]])
+    policy = ilqr.AffinePolicy(l, L)
+
+    x = jnp.array([1, 2])
+    u_exp = jnp.array([6, 13])
+    assert jnp.all(policy(x) == u_exp)
+
+
+def test_AffinePolicy_multi():
+    n = 2
+    m = 3
+    N = 2
+    l = jnp.arange(0, N * m).reshape((N, m))
+    L = jnp.arange(0, N * m * n).reshape((N, m, n))
+    x = jnp.array([0, 0])
+    policy = ilqr.AffinePolicy(l, L)
+
+    assert jnp.all(policy[1].l == l[1])
+    assert jnp.all(policy[0].L == L[0])
+    assert jnp.all(policy(x, k=0) == l[0])
+    assert jnp.all(policy(x, k=1) == l[1])
+
+
 ### OLD Tests
 def dynFun(k, x, u):
     return x + u
