@@ -149,7 +149,7 @@ def trajectoryRollout(
         xOut = dynFun(x, u)
         return xOut, (xOut, u)
 
-    _, (xTraj, uTraj) = jax.lax.scan(step, x0, N)
+    _, (xTraj, uTraj) = jax.lax.scan(step, x0, jnp.arange(N))
     xTraj = jnp.concatenate([x0[None, :], xTraj])
     return Trajectory(xTraj, uTraj)
 

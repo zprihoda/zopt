@@ -253,6 +253,24 @@ def test_AffinePolicy_multi():
     assert jnp.all(policy(x, k=1) == l[1])
 
 
+def test_trajectoryRollout():
+    N = 3
+    dynFun = lambda x, u: x + u
+    policy = lambda x, k, alpha: jnp.array([alpha * k])
+    xPrev = jnp.zeros(N)
+    uPrev = jnp.zeros(N)
+    trajPrev = (xPrev, uPrev)
+    x0 = jnp.array([0.])
+
+    xTraj, uTraj = ilqr.trajectoryRollout(x0, dynFun, policy, trajPrev)
+    assert jnp.all(xTraj == jnp.array([0, 0, 1, 3])[:, None])
+    assert jnp.all(uTraj == jnp.array([0, 1, 2])[:, None])
+
+    xTraj, uTraj = ilqr.trajectoryRollout(x0, dynFun, policy, trajPrev, alpha=0.5)
+    assert jnp.all(xTraj == jnp.array([0, 0, 0.5, 1.5])[:, None])
+    assert jnp.all(uTraj == jnp.array([0, 0.5, 1])[:, None])
+
+
 ### OLD Tests
 def dynFun(k, x, u):
     return x + u
