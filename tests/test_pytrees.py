@@ -2,6 +2,7 @@ import jax.numpy as jnp
 import pytest
 import zProj.pytrees as pytrees
 
+
 def test_Trajectory():
     m = 2
     n = 3
@@ -266,6 +267,3 @@ def test_QuadraticDeltaCost():
     dJFun = pytrees.QuadraticDeltaCost(dJ_lin, dJ_quad)
     assert dJFun(1) == 3
     assert dJFun(0.5) == 1
-
-
-

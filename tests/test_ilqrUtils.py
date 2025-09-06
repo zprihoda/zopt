@@ -1,10 +1,10 @@
 import jax
 import jax.numpy as jnp
 import numpy as np
-import pytest
 import zProj.ilqrUtils as ilqr
 
 jax.config.update("jax_enable_x64", True)  # TEMP: Remove once iLQR line search improved
+
 
 def test_trajectoryRollout():
     N = 3
