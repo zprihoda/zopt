@@ -4,7 +4,6 @@ A random collection of small projects
 ## TODO:
 ### ilqr-jax
 - Implement:
-    - forward pass + test
     - ricatti_step + test
     - backward_pass + test
         - For ensuring positive definite, consider a hybrid of the paper vs Stanford method?

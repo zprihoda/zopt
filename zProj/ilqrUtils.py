@@ -212,6 +212,27 @@ def forwardPass2(
     return traj, J
 
 
+def riccatiStep_ilqr(dynamics: AffineDynamics, cost: QuadraticCostFunction, value: QuadraticValueFunction):
+    _, f_x, f_u = dynamics
+    c, c_x, c_u, c_xx, c_uu, c_ux = cost
+    v, v_x, v_xx = value
+
+    Q = c + v
+    Q_x = c_x + f_x.T @ v_x
+    Q_u = c_u + f_u.T @ v_x
+    Q_xx = c_xx + f_x.T @ v_xx @ f_x
+    Q_uu = c_uu + f_u.T @ v_xx @ f_u
+    Q_ux = c_ux + f_u.T @ v_xx @ f_x
+
+    l = -jnp.linalg.solve(Q_uu, Q_u)
+    L = -jnp.linalg.solve(Q_uu, Q_ux)
+
+    valueOut = QuadraticValueFunction(Q - 0.5 * l.T @ Q_uu @ l, Q_x - L.T @ Q_uu @ l, Q_xx - L.T @ Q_uu @ L)
+
+    policy = AffinePolicy(l, L)
+    return valueOut, policy
+
+
 ## iLQR and DDP
 class iLQR():
     """Iterative LQR Solver"""
