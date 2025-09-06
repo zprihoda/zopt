@@ -114,6 +114,52 @@ def backwardPass_ilqr(dynamics: AffineDynamics, cost: QuadraticCostFunction, Vf:
     return policy
 
 
+def iterativeLqr(
+    dynamics: Callable[[jnp.array, jnp.array], jnp.array],
+    runningCost: Callable[[jnp.array, jnp.array], float],
+    terminalCost: Callable[[jnp.array], float],
+    x0: jnp.array,
+    uGuess: jnp.array,
+    maxIter=100,
+    tol=1e-3
+):
+    n = x0.shape
+    N, m = uGuess.shape
+    cost = CostFunction(runningCost, terminalCost)
+    policy = AffinePolicy(uGuess, jnp.zeros((N, m, n)))
+    traj_prev = Trajectory(jnp.zeros((N + 1, n)), jnp.zeros((N, m)))
+
+    # Rollout initial trajectory
+    traj = trajectoryRollout(x0, dynamics, policy, traj_prev)
+    J = cost(traj)
+
+    # ILQR loop
+    def ilqrCond(loopVars):
+        traj, J, converged, iter = loopVars
+        return ~converged | iter < maxIter
+
+    def ilqrStep(loopVars):
+        traj, J, converged, iter = loopVars
+
+        affine_dynamics = AffineDynamics.from_trajectory(dynamics, traj)
+        quadratic_cost = QuadraticCostFunction.from_trajectory(cost, traj)
+        Vf = QuadraticValueFunction.fromTerminalCostFunction(cost, traj.xTraj[-1])
+
+        policy = backwardPass_ilqr(affine_dynamics, quadratic_cost, Vf)
+        traj_new, J_new = forwardPass2(x0, dynamics, cost, policy, traj)
+
+        converged = abs(J - J_new) <= tol
+        traj = traj_new
+        J = J_new
+        iter += 1
+        return (traj, J, converged, iter)
+
+    out = jax.lax.while_loop(ilqrCond, ilqrStep, (traj, J, False, 0))
+    traj, J, converged, iter = out
+
+    return traj, J, converged
+
+
 ## iLQR and DDP
 class iLQR():
     """Iterative LQR Solver"""
