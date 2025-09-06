@@ -4,7 +4,7 @@ A random collection of small projects
 ## TODO:
 ### ilqr-jax
 - Implement:
-    - ricatti_step + test
+    - ricatti_step and backward_pass tests
     - backward_pass + test
         - For ensuring positive definite, consider a hybrid of the paper vs Stanford method?
             - Actually Stanford method may just be the fastest, as the paper version has to compute the eigenvaues every iteration anyway...

@@ -66,10 +66,7 @@ def test_QuadraticValueFunction_fromTerminalCostFunction():
     c_x = jnp.array([1, 2])
     c_xx = jnp.eye(2)
     x0 = jnp.zeros(2)
-    costFun = ilqr.CostFunction(
-        0,
-        lambda x: c + c_x.T @ x + 0.5 * x.T @ c_xx @ x
-    )
+    costFun = ilqr.CostFunction(0, lambda x: c + c_x.T @ x + 0.5 * x.T @ c_xx @ x)
     value = ilqr.QuadraticValueFunction.fromTerminalCostFunction(costFun, x0)
     assert value.v == c
     assert jnp.all(value.v_x == c_x)

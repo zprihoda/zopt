@@ -56,6 +56,7 @@ class QuadraticValueFunction(NamedTuple):
         v_xx = jax.hessian(cf)(x0)
         return cls(v, v_x, v_xx)
 
+
 class QuadraticCostFunction(NamedTuple):
     """
     Quadratic cost function of the form:
@@ -240,8 +241,12 @@ def riccatiStep_ilqr(dynamics: AffineDynamics, cost: QuadraticCostFunction, valu
     return valueOut, policy
 
 
-def backwardPass_ilqr():
-    pass
+def backwardPass_ilqr(dynamics: AffineDynamics, cost: QuadraticCostFunction, Vf: QuadraticValueFunction):
+    N = len(cost.c)
+    scan_fun = lambda V, k: riccatiStep_ilqr(dynamics[k], cost[k], V)
+    _, policy = jax.lax.scan(scan_fun, Vf, xs=jnp.arange(N), reverse=True)
+    return policy
+
 
 ## iLQR and DDP
 class iLQR():
