@@ -60,6 +60,22 @@ def test_QuadraticValueFunction():
     assert V(x) == pytest.approx(V_exp)
 
 
+def test_QuadraticValueFunction_fromTerminalCostFunction():
+
+    c = 1
+    c_x = jnp.array([1, 2])
+    c_xx = jnp.eye(2)
+    x0 = jnp.zeros(2)
+    costFun = ilqr.CostFunction(
+        0,
+        lambda x: c + c_x.T @ x + 0.5 * x.T @ c_xx @ x
+    )
+    value = ilqr.QuadraticValueFunction.fromTerminalCostFunction(costFun, x0)
+    assert value.v == c
+    assert jnp.all(value.v_x == c_x)
+    assert jnp.all(value.v_xx == c_xx)
+
+
 def test_QuadraticCostFunction_base():
     c = jnp.array(0.)
     c_x = jnp.array([1, 2])

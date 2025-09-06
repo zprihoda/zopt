@@ -48,6 +48,13 @@ class QuadraticValueFunction(NamedTuple):
         v, v_x, v_xx = self
         return v + v_x.T @ x + 0.5 * x.T @ v_xx @ x
 
+    @classmethod
+    def fromTerminalCostFunction(cls, costFun: CostFunction, x0: jnp.array):
+        cf = costFun.terminalCost
+        v = cf(x0)
+        v_x = jax.grad(cf)(x0)
+        v_xx = jax.hessian(cf)(x0)
+        return cls(v, v_x, v_xx)
 
 class QuadraticCostFunction(NamedTuple):
     """
@@ -197,7 +204,7 @@ def forwardPass2(
     policy: AffinePolicy,
     trajPrev: Trajectory
 ):
-    """Alternate forward pass; generated trajectories for fixed alphas and select minimum cost trajectory"""
+    """Alternate forward pass: generate trajectories for fixed alphas and select minimum cost trajectory"""
 
     def forwardPassInner(alpha):
         trajNew = trajectoryRollout(x0, dynFun, policy, trajPrev, alpha=alpha)
@@ -232,6 +239,9 @@ def riccatiStep_ilqr(dynamics: AffineDynamics, cost: QuadraticCostFunction, valu
     policy = AffinePolicy(l, L)
     return valueOut, policy
 
+
+def backwardPass_ilqr():
+    pass
 
 ## iLQR and DDP
 class iLQR():
