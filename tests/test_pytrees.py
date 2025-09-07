@@ -146,7 +146,7 @@ def test_QuadraticCostFunction_fromTrajectory():
     c_xx = jnp.eye(2)
     c_xu = jnp.array([[1, 2], [3, 4]])
     c_uu = jnp.eye(2)
-    x0 = jnp.array([[0., 0], [1, 0]])
+    x0 = jnp.array([[0., 0], [1, 0], [1, 1]])
     u0 = jnp.zeros((2, 2))
     traj = pytrees.Trajectory(x0, u0)
     costFun = pytrees.CostFunction.runningOnly(
@@ -223,7 +223,7 @@ def test_AffineDynamics_fromTrajectory():
     f_x = jnp.array([[2, 3], [4, 5]])
     f_u = jnp.array([[6], [7]])
     dynFun = lambda x, u: f + f_x @ x + f_u @ u + 0.5 * x.T @ x
-    x0 = jnp.array([[0., 0], [1, 0]])
+    x0 = jnp.array([[0., 0], [1, 0], [2, 0]])
     u0 = jnp.zeros((2, 1))
     traj = pytrees.Trajectory(x0, u0)
 

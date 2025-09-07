@@ -30,8 +30,11 @@ class CostFunction(NamedTuple):
     def __call__(self, traj: Trajectory, k=None):
         runningCost, terminalCost = self
         xTraj, uTraj = traj
-        return jax.vmap(runningCost)(xTraj[:-1],
-                                     uTraj) + terminalCost(xTraj[-1]) if k is None else runningCost(xTraj[k], uTraj[k])
+        if k is None:
+            J = jnp.sum(jax.vmap(runningCost)(xTraj[:-1], uTraj)) + terminalCost(xTraj[-1])
+        else:
+            J = runningCost(xTraj[k], uTraj[k])
+        return J
 
 
 class QuadraticValueFunction(NamedTuple):
@@ -80,7 +83,7 @@ class QuadraticCostFunction(NamedTuple):
     def from_trajectory(cls, costFun: CostFunction, traj: Trajectory):
         """Second order Taylor series expansion of cost function `c(x,u)` about (xTraj,uTraj)"""
         xTraj, uTraj = traj
-        return jax.vmap(lambda x0, u0: cls.from_function(costFun, x0, u0))(xTraj, uTraj)
+        return jax.vmap(lambda x0, u0: cls.from_function(costFun, x0, u0))(xTraj[:-1], uTraj)
 
     def __call__(self, x: jnp.ndarray, u: jnp.ndarray, k: int = None):
         c, c_x, c_u, c_xx, c_xu, c_uu = self
@@ -111,7 +114,7 @@ class AffineDynamics(NamedTuple):
     def from_trajectory(cls, dynFun: Callable[[jnp.ndarray, jnp.ndarray], jnp.ndarray], traj: Trajectory):
         """Second order Taylor series expansion of cost function `c(x,u)` about (xTraj,uTraj)"""
         xTraj, uTraj = traj
-        return jax.vmap(lambda x0, u0: cls.from_function(dynFun, x0, u0))(xTraj, uTraj)
+        return jax.vmap(lambda x0, u0: cls.from_function(dynFun, x0, u0))(xTraj[:-1], uTraj)
 
     def __call__(self, x: jnp.ndarray, u: jnp.ndarray, k: int = None):
         f, f_x, f_u = self
