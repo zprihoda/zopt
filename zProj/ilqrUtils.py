@@ -168,7 +168,7 @@ def backwardPass_ilqr(dynamics: AffineDynamics, cost: QuadraticCostFunction, Vf:
     return policy
 
 
-@partial(jax.jit, static_argnames=["dynamics", "runningCost", "terminalCost", "maxIter", "tol"])
+@partial(jax.jit, static_argnames=["dynamics", "runningCost", "terminalCost"])
 def iterativeLqr(
     dynamics: Callable[[jnp.array, jnp.array], jnp.array],
     runningCost: Callable[[jnp.array, jnp.array], float],
@@ -177,7 +177,26 @@ def iterativeLqr(
     uGuess: jnp.array,
     maxIter=100,
     tol=1e-3
-):
+) -> tuple[Trajectory, float, bool]:
+    """
+    Iterative LQR algorithm
+
+    Arguments
+    ---------
+        dynamics : Discrete dynamics function: `xOut = f(x,u)`
+        runningCost : Running cost function: `j = c(x,u)`
+        terminalCost : Terminal cost function `j = cf(xf)`
+        x0 : Initial state
+        uGuess : Initial guess for control trajectory
+        maxIter : Maximum number of ilqr iterations
+        tol : Convergence tolerance: `abs(J_prev - J) <= tol`
+
+    Returns
+    -------
+    traj : Output trajectory
+    J : Cost
+    converged : Whether ilqr converged
+    """
     n = x0.shape[0]
     N, m = uGuess.shape
     cost = CostFunction(runningCost, terminalCost)
