@@ -134,7 +134,7 @@ class AffinePolicy(NamedTuple):
         l, L = self
         if k is None and l.ndim != 1:
             raise ValueError("Must specify index for multi-dimensional policy")
-        return alpha * l + L @ x if k is None else self[k](x)
+        return alpha * l + L @ x if k is None else self[k](x, alpha=alpha)
 
     def __getitem__(self, k: int):
         return jax.tree.map(lambda x: x[k], self)

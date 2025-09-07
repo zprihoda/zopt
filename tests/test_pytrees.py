@@ -259,6 +259,7 @@ def test_AffinePolicy_multi():
     assert jnp.all(policy[0].L == L[0])
     assert jnp.all(policy(x, k=0) == l[0])
     assert jnp.all(policy(x, k=1) == l[1])
+    assert jnp.all(policy(x, k=0, alpha=0.5) == 0.5*l[0])
 
 
 def test_QuadraticDeltaCost():
