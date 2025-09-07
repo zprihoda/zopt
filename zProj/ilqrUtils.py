@@ -3,6 +3,7 @@ import jax.numpy as jnp
 import numpy as np
 import warnings
 
+from functools import partial
 from typing import Callable
 from zProj.jaxUtils import maybeJit, maybeJitCls
 from zProj.pytrees import (
@@ -167,6 +168,7 @@ def backwardPass_ilqr(dynamics: AffineDynamics, cost: QuadraticCostFunction, Vf:
     return policy
 
 
+@partial(jax.jit, static_argnames=["dynamics", "runningCost", "terminalCost", "maxIter", "tol"])
 def iterativeLqr(
     dynamics: Callable[[jnp.array, jnp.array], jnp.array],
     runningCost: Callable[[jnp.array, jnp.array], float],
