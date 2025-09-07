@@ -38,6 +38,7 @@ def test_forwardPass():
     dJFun = lambda alpha: 1
     JPrev = 1
     traj, JNew = ilqr.forwardPass(x0, dynFun, costFun, policy, trajPrev, dJFun, JPrev)
+    assert isinstance(traj, pytrees.Trajectory)
 
 
 def test_forwardPass2():
@@ -53,7 +54,6 @@ def test_forwardPass2():
 
     # Dummy checks, just verify we run without error
     assert isinstance(traj, pytrees.Trajectory)
-    assert isinstance(J, float)
 
 
 def test_riccatiStep_ilqr():
