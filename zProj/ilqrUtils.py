@@ -189,7 +189,7 @@ def iterativeLqr(
     # ILQR loop
     def ilqrCond(loopVars):
         traj, J, converged, iter = loopVars
-        return (not converged) and iter < maxIter
+        return jnp.logical_not(converged) & (iter < maxIter)
 
     def ilqrStep(loopVars):
         traj, J, converged, iter = loopVars
@@ -207,13 +207,8 @@ def iterativeLqr(
         iter += 1
         return (traj, J, converged, iter)
 
-    loopVars = (traj, J, False, 0)
-    while ilqrCond(loopVars):
-        loopVars = ilqrStep(loopVars)
-    traj, J, converged, iter = loopVars
-
-    # out = jax.lax.while_loop(ilqrCond, ilqrStep, (traj, J, False, 0))
-    # traj, J, converged, iter = out
+    out = jax.lax.while_loop(ilqrCond, ilqrStep, (traj, J, False, 0))
+    traj, J, converged, iter = out
 
     return traj, J, converged
 
