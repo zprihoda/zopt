@@ -140,7 +140,7 @@ def riccatiStep_ilqr(dynamics: AffineDynamics, cost: QuadraticCostFunction,
                      value: QuadraticValueFunction) -> tuple[QuadraticValueFunction, AffinePolicy]:
     """Perform one step of the backwards Ricatti recursion"""
     _, f_x, f_u = dynamics
-    c, c_x, c_u, c_xx, c_uu, c_ux = cost
+    c, c_x, c_u, c_xx, c_ux, c_uu = cost
     v, v_x, v_xx = value
 
     Q = c + v
@@ -189,7 +189,7 @@ def iterativeLqr(
     # ILQR loop
     def ilqrCond(loopVars):
         traj, J, converged, iter = loopVars
-        return ~converged | iter < maxIter
+        return (not converged) and iter < maxIter
 
     def ilqrStep(loopVars):
         traj, J, converged, iter = loopVars
@@ -207,8 +207,13 @@ def iterativeLqr(
         iter += 1
         return (traj, J, converged, iter)
 
-    out = jax.lax.while_loop(ilqrCond, ilqrStep, (traj, J, False, 0))
-    traj, J, converged, iter = out
+    loopVars = (traj, J, False, 0)
+    while ilqrCond(loopVars):
+        loopVars = ilqrStep(loopVars)
+    traj, J, converged, iter = loopVars
+
+    # out = jax.lax.while_loop(ilqrCond, ilqrStep, (traj, J, False, 0))
+    # traj, J, converged, iter = out
 
     return traj, J, converged
 

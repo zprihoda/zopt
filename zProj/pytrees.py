@@ -60,14 +60,14 @@ class QuadraticCostFunction(NamedTuple):
     """
     Quadratic cost function of the form:
     ```
-    C(x,u) = c + c_x.T @ x + c_u.T @ u + 0.5 * (x.T @ c_xx @ x + 2*x.T @ c_xu @ u + u.T @ c_uu @ u)
+    C(x,u) = c + c_x.T @ x + c_u.T @ u + 0.5 * (x.T @ c_xx @ x + 2*u.T @ c_ux @ x + u.T @ c_uu @ u)
     ```
     """
     c: jnp.ndarray
     c_x: jnp.ndarray
     c_u: jnp.ndarray
     c_xx: jnp.ndarray
-    c_xu: jnp.ndarray
+    c_ux: jnp.ndarray
     c_uu: jnp.ndarray
 
     @classmethod
@@ -76,8 +76,8 @@ class QuadraticCostFunction(NamedTuple):
         runningCost = costFun.runningCost
         c = runningCost(x0, u0)
         c_x, c_u = jax.jacobian(runningCost, argnums=(0, 1))(x0, u0)
-        ((c_xx, c_xu), (_, c_uu)) = jax.hessian(runningCost, (0, 1))(x0, u0)
-        return cls(c, c_x, c_u, c_xx, c_xu, c_uu)
+        ((c_xx, _), (c_ux, c_uu)) = jax.hessian(runningCost, (0, 1))(x0, u0)
+        return cls(c, c_x, c_u, c_xx, c_ux, c_uu)
 
     @classmethod
     def from_trajectory(cls, costFun: CostFunction, traj: Trajectory):
@@ -86,10 +86,10 @@ class QuadraticCostFunction(NamedTuple):
         return jax.vmap(lambda x0, u0: cls.from_function(costFun, x0, u0))(xTraj[:-1], uTraj)
 
     def __call__(self, x: jnp.ndarray, u: jnp.ndarray, k: int = None):
-        c, c_x, c_u, c_xx, c_xu, c_uu = self
+        c, c_x, c_u, c_xx, c_ux, c_uu = self
         if k is None and c.ndim != 0:
             raise ValueError("Must specify index for multi-dimensional cost")
-        return c + c_x @ x + c_u @ u + 0.5 * (x.T @ c_xx @ x + 2 * x.T @ c_xu @ u +
+        return c + c_x @ x + c_u @ u + 0.5 * (x.T @ c_xx @ x + 2 * u.T @ c_ux @ x +
                                               u.T @ c_uu @ u) if k is None else self[k](x, u)
 
     def __getitem__(self, k: int):

@@ -79,9 +79,9 @@ def test_riccatiStep_ilqr():
 
     assert valueOut.v == 0
     assert jnp.all(valueOut.v_x == jnp.array([0, 0]))
-    assert jnp.all(valueOut.v_xx == -2 * jnp.eye(2))
+    assert jnp.all(valueOut.v_xx == 1.5 * jnp.eye(2))
     assert jnp.all(policy.l == jnp.array([0, 0]))
-    assert jnp.all(policy.L == -2 * jnp.eye(2))
+    assert jnp.all(policy.L == -0.5 * jnp.eye(2))
 
 
 def test_backwardPass():
@@ -121,6 +121,7 @@ def test_iterativeLqr():
     terminalCost = lambda x: x @ Q @ x
     x0 = jnp.array([2., 1])
     uGuess = jnp.zeros((N, 2))
+
     trajectory, J, converged = ilqr.iterativeLqr(dynamics, runningCost, terminalCost, x0, uGuess)
     assert converged
 

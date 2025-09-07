@@ -74,14 +74,14 @@ def test_QuadraticCostFunction_base():
     c_x = jnp.array([1, 2])
     c_u = jnp.array([2, 1])
     c_xx = jnp.eye(2)
-    c_xu = jnp.ones((2, 2))
+    c_ux = jnp.ones((2, 2))
     c_uu = jnp.eye(2)
-    C = pytrees.QuadraticCostFunction(c, c_x, c_u, c_xx, c_xu, c_uu)
+    C = pytrees.QuadraticCostFunction(c, c_x, c_u, c_xx, c_ux, c_uu)
     assert C.c == c
     assert jnp.all(C.c_x == c_x)
     assert jnp.all(C.c_u == c_u)
     assert jnp.all(C.c_xx == c_xx)
-    assert jnp.all(C.c_xu == c_xu)
+    assert jnp.all(C.c_ux == c_ux)
     assert jnp.all(C.c_uu == c_uu)
 
     x = jnp.array([1., 2])
@@ -95,16 +95,16 @@ def test_QuadraticCostFunction_getItem():
     c_x = jnp.eye(2)
     c_u = jnp.eye(2)
     c_xx = jnp.array([jnp.eye(2), jnp.zeros((2, 2))])
-    c_xu = jnp.array([jnp.eye(2), jnp.zeros((2, 2))])
+    c_ux = jnp.array([jnp.eye(2), jnp.zeros((2, 2))])
     c_uu = jnp.array([jnp.eye(2), jnp.zeros((2, 2))])
-    C = pytrees.QuadraticCostFunction(c, c_x, c_u, c_xx, c_xu, c_uu)
+    C = pytrees.QuadraticCostFunction(c, c_x, c_u, c_xx, c_ux, c_uu)
 
     C0 = C[0]
     assert C0.c == c[0]
     assert jnp.all(C0.c_x == c_x[0])
     assert jnp.all(C0.c_u == c_u[0])
     assert jnp.all(C0.c_xx == c_xx[0])
-    assert jnp.all(C0.c_xu == c_xu[0])
+    assert jnp.all(C0.c_ux == c_ux[0])
     assert jnp.all(C0.c_uu == c_uu[0])
 
     C1 = C[1]
@@ -112,7 +112,7 @@ def test_QuadraticCostFunction_getItem():
     assert jnp.all(C1.c_x == c_x[1])
     assert jnp.all(C1.c_u == c_u[1])
     assert jnp.all(C1.c_xx == c_xx[1])
-    assert jnp.all(C1.c_xu == c_xu[1])
+    assert jnp.all(C1.c_ux == c_ux[1])
     assert jnp.all(C1.c_uu == c_uu[1])
 
 
@@ -121,13 +121,13 @@ def test_QuadraticCostFunction_fromFunction():
     c_x = jnp.array([1, 2])
     c_u = jnp.array([2, 1])
     c_xx = jnp.eye(2)
-    c_xu = jnp.array([[1, 2], [3, 4]])
+    c_ux = jnp.array([[1, 2], [3, 4]])
     c_uu = jnp.eye(2)
     x0 = jnp.zeros(2)
     u0 = jnp.zeros(2)
 
     costFun = pytrees.CostFunction.runningOnly(
-        lambda x, u: c + c_x.T @ x + c_u.T @ u + 0.5 * (x.T @ c_xx @ x + 2 * x.T @ c_xu @ u + u.T @ c_uu @ u)
+        lambda x, u: c + c_x.T @ x + c_u.T @ u + 0.5 * (x.T @ c_xx @ x + 2 * u.T @ c_ux @ x + u.T @ c_uu @ u)
     )
     C = pytrees.QuadraticCostFunction.from_function(costFun, x0, u0)
 
@@ -135,7 +135,7 @@ def test_QuadraticCostFunction_fromFunction():
     assert jnp.all(C.c_x == c_x)
     assert jnp.all(C.c_u == c_u)
     assert jnp.all(C.c_xx == c_xx)
-    assert jnp.all(C.c_xu == c_xu)
+    assert jnp.all(C.c_ux == c_ux)
     assert jnp.all(C.c_uu == c_uu)
 
 
@@ -144,13 +144,13 @@ def test_QuadraticCostFunction_fromTrajectory():
     c_x = jnp.array([1, 2])
     c_u = jnp.array([2, 1])
     c_xx = jnp.eye(2)
-    c_xu = jnp.array([[1, 2], [3, 4]])
+    c_ux = jnp.array([[1, 2], [3, 4]])
     c_uu = jnp.eye(2)
     x0 = jnp.array([[0., 0], [1, 0], [1, 1]])
     u0 = jnp.zeros((2, 2))
     traj = pytrees.Trajectory(x0, u0)
     costFun = pytrees.CostFunction.runningOnly(
-        lambda x, u: c + c_x.T @ x + c_u.T @ u + 0.5 * (x.T @ c_xx @ x + 2 * x.T @ c_xu @ u + u.T @ c_uu @ u)
+        lambda x, u: c + c_x.T @ x + c_u.T @ u + 0.5 * (x.T @ c_xx @ x + 2 * u.T @ c_ux @ x + u.T @ c_uu @ u)
     )
     C = pytrees.QuadraticCostFunction.from_trajectory(costFun, traj)
 
@@ -159,16 +159,16 @@ def test_QuadraticCostFunction_fromTrajectory():
     assert jnp.all(C0.c_x == c_x)
     assert jnp.all(C0.c_u == c_u)
     assert jnp.all(C0.c_xx == c_xx)
-    assert jnp.all(C0.c_xu == c_xu)
+    assert jnp.all(C0.c_ux == c_ux)
     assert jnp.all(C0.c_uu == c_uu)
 
     C1 = C[1]
     x1 = x0[1]
     assert C1.c == costFun(traj, k=1)
     assert jnp.all(C1.c_x == c_x + c_xx @ x1)
-    assert jnp.all(C1.c_u == c_u + c_xu.T @ x1)
+    assert jnp.all(C1.c_u == c_u + c_ux @ x1)
     assert jnp.all(C1.c_xx == c_xx)
-    assert jnp.all(C1.c_xu == c_xu)
+    assert jnp.all(C1.c_ux == c_ux)
     assert jnp.all(C1.c_uu == c_uu)
 
 
@@ -259,7 +259,7 @@ def test_AffinePolicy_multi():
     assert jnp.all(policy[0].L == L[0])
     assert jnp.all(policy(x, k=0) == l[0])
     assert jnp.all(policy(x, k=1) == l[1])
-    assert jnp.all(policy(x, k=0, alpha=0.5) == 0.5*l[0])
+    assert jnp.all(policy(x, k=0, alpha=0.5) == 0.5 * l[0])
 
 
 def test_QuadraticDeltaCost():
