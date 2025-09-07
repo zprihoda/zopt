@@ -2,6 +2,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import zProj.ilqrUtils as ilqr
+import zProj.pytrees as pytrees
 
 jax.config.update("jax_enable_x64", True)  # TEMP: Remove once iLQR line search improved
 
@@ -49,6 +50,64 @@ def test_forwardPass2():
     policy = lambda x, k, alpha: jnp.array([-10 * alpha])
     trajPrev = ilqr.Trajectory(jnp.repeat(x0[None, :], N + 1, axis=0), jnp.zeros((N, 1)))
     traj, J = ilqr.forwardPass2(x0, dynFun, costFun, policy, trajPrev)
+
+    # Dummy checks, just verify we run without error
+    assert isinstance(traj, pytrees.Trajectory)
+    assert isinstance(J, float)
+
+
+def test_riccatiStep_ilqr():
+    A = jnp.eye(2)
+    B = jnp.eye(2)
+    f = jnp.zeros(2)
+
+    c = 0
+    c_x = jnp.zeros(2)
+    c_u = jnp.zeros(2)
+    c_xx = jnp.eye(2)
+    c_uu = jnp.eye(2)
+    c_ux = jnp.zeros((2, 2))
+
+    v = 0
+    v_x = jnp.zeros(2)
+    v_xx = c_xx
+
+    dynamics = (f, A, B)
+    cost = (c, c_x, c_u, c_xx, c_ux, c_uu)
+    value = (v, v_x, v_xx)
+    valueOut, policy = ilqr.riccatiStep_ilqr(dynamics, cost, value)
+
+    assert valueOut.v == 0
+    assert jnp.all(valueOut.v_x == jnp.array([0, 0]))
+    assert jnp.all(valueOut.v_xx == -2 * jnp.eye(2))
+    assert jnp.all(policy.l == jnp.array([0, 0]))
+    assert jnp.all(policy.L == -2 * jnp.eye(2))
+
+
+def test_backwardPass():
+    N = 2
+    A = jnp.repeat(jnp.eye(2)[None, :, :], N, axis=0)
+    B = jnp.repeat(jnp.eye(2)[None, :, :], N, axis=0)
+    f = jnp.zeros((N, 2))
+
+    c = jnp.zeros(N)
+    c_x = jnp.zeros((N, 2))
+    c_u = jnp.zeros((N, 2))
+    c_xx = jnp.repeat(jnp.eye(2)[None, :, :], N, axis=0)
+    c_uu = jnp.repeat(jnp.eye(2)[None, :, :], N, axis=0)
+    c_ux = jnp.zeros((N, 2, 2))
+
+    v = 0
+    v_x = jnp.zeros(2)
+    v_xx = c_xx[-1]
+
+    dynamics = pytrees.AffineDynamics(f, A, B)
+    cost = pytrees.QuadraticCostFunction(c, c_x, c_u, c_xx, c_ux, c_uu)
+    value = pytrees.QuadraticValueFunction(v, v_x, v_xx)
+    policy = ilqr.backwardPass_ilqr(dynamics, cost, value)
+
+    # Dummy checks, just verify we run without error
+    assert isinstance(policy, pytrees.AffinePolicy)
 
 
 ### OLD Tests
