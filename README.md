@@ -3,14 +3,15 @@ A random collection of small projects
 
 ## TODO:
 ### ilqr-jax
-- Implement:
-    - ricatti_step and backward_pass tests
-    - backward_pass + test
-        - For ensuring positive definite, consider a hybrid of the paper vs Stanford method?
-            - Actually Stanford method may just be the fastest, as the paper version has to compute the eigenvaues every iteration anyway...
-            - Unless we can implement a recursive eigenvalue update method?
+- Debug ilqr test:
+    - Temporarily expand jax while loop into a python while loop and step through
+- Add protection against non-PD cost functions.
+    - For ensuring positive definite, consider a hybrid of the paper vs Stanford method?
+    - Actually Stanford method may just be the fastest, as the paper version has to compute the eigenvaues every iteration anyway...
+    - Unless we can implement a recursive eigenvalue update method?
 - Consider updating functions that take (x0,u0) and convert to use Trajectory?
     - May make more sense if we rename Trajectory to StateActionPair? But is that better than current approach? Seems confusing?
+- More documentation
 
 ### All
 - ilqr-jax:

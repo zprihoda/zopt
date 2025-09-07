@@ -176,7 +176,7 @@ def iterativeLqr(
     maxIter=100,
     tol=1e-3
 ):
-    n = x0.shape
+    n = x0.shape[0]
     N, m = uGuess.shape
     cost = CostFunction(runningCost, terminalCost)
     policy = AffinePolicy(uGuess, jnp.zeros((N, m, n)))

@@ -110,6 +110,21 @@ def test_backwardPass():
     assert isinstance(policy, pytrees.AffinePolicy)
 
 
+def test_iterativeLqr():
+    A = jnp.eye(2)
+    B = jnp.eye(2)
+    Q = jnp.eye(2)
+    R = jnp.eye(2)
+    N = 3
+    dynamics = lambda x, u: A @ x + B @ u
+    runningCost = lambda x, u: x @ Q @ x + u @ R @ u
+    terminalCost = lambda x: x @ Q @ x
+    x0 = jnp.array([2., 1])
+    uGuess = jnp.zeros((N, 2))
+    trajectory, J, converged = ilqr.iterativeLqr(dynamics, runningCost, terminalCost, x0, uGuess)
+    assert converged
+
+
 ### OLD Tests
 def dynFun(k, x, u):
     return x + u
