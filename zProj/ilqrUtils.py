@@ -22,7 +22,22 @@ def trajectoryRollout(
     policy: AffinePolicy,
     trajPrev: Trajectory,
     alpha: float = 1
-):
+) -> Trajectory:
+    """
+    Rollout a trajectory from the initial state using the provided control policy
+
+    Arguments
+    ---------
+        x0 : Initial state
+        dynFun : Non-linear dynamics function of the form: `xOut = f(x,u)`
+        policy : Affine control policy
+        trajPrev : Previous trajectory
+        alpha : Step size
+
+    Returns
+    -------
+        Resulting trajectory
+    """
     xPrev, uPrev = trajPrev
     N = uPrev.shape[0]
 
@@ -47,7 +62,27 @@ def forwardPass(
     JPrev: float,
     cLineSearch: float = 0.5,
     alphaMin: float = 0.5**16
-):
+) -> tuple[Trajectory, float]:
+    """
+    ILQR forward pass using the expected quadratic cost change to determine the step size
+
+    Arguments
+    ---------
+        x0 : Initial state
+        dynFun : Non-linear dynamics function of the form: `xOut = f(x,u)`
+        costFun : Cost function for step-size line search
+        policy : Affine control policy
+        trajPrev : Previous trajectorys
+        dJFun : Quadratic cost change function: `dJ_exp = djFun(alpha)`
+        JPrev : Previous cost
+        cLineSearch : Termination criteria for line search: `(J-J_prev) > cLineSearch * dJ_exp`
+            Must be between [0,1]
+        alphaMin : Minimum step size for line search
+
+    Returns
+    -------
+        New trajectory and cost
+    """
 
     def forwardPassStep(loopVars):
         J, traj, alpha = loopVars
@@ -70,8 +105,23 @@ def forwardPass2(
     costFun: CostFunction,
     policy: AffinePolicy,
     trajPrev: Trajectory
-):
-    """Alternate forward pass: generate trajectories for fixed alphas and select minimum cost trajectory"""
+) -> tuple[Trajectory, float]:
+    """
+    Simplified ILQR forward pass.
+    Rollout trajectories for a fixed set of step sizes and select the one with minimum cost.
+
+    Arguments
+    ---------
+        x0 : Initial state
+        dynFun : Non-linear dynamics function of the form: `xOut = f(x,u)`
+        costFun : Cost function for step-size line search
+        policy : Affine control policy
+        trajPrev : Previous trajectorys
+
+    Returns
+    -------
+        New trajectory and cost
+    """
 
     def forwardPassInner(alpha):
         trajNew = trajectoryRollout(x0, dynFun, policy, trajPrev, alpha=alpha)
@@ -86,7 +136,9 @@ def forwardPass2(
     return traj, J
 
 
-def riccatiStep_ilqr(dynamics: AffineDynamics, cost: QuadraticCostFunction, value: QuadraticValueFunction):
+def riccatiStep_ilqr(dynamics: AffineDynamics, cost: QuadraticCostFunction,
+                     value: QuadraticValueFunction) -> tuple[QuadraticValueFunction, AffinePolicy]:
+    """Perform one step of the backwards Ricatti recursion"""
     _, f_x, f_u = dynamics
     c, c_x, c_u, c_xx, c_uu, c_ux = cost
     v, v_x, v_xx = value
@@ -108,6 +160,7 @@ def riccatiStep_ilqr(dynamics: AffineDynamics, cost: QuadraticCostFunction, valu
 
 
 def backwardPass_ilqr(dynamics: AffineDynamics, cost: QuadraticCostFunction, Vf: QuadraticValueFunction):
+    """Backwards pass of the ILQR algorithm"""
     N = len(cost.c)
     scan_fun = lambda V, k: riccatiStep_ilqr(dynamics[k], cost[k], V)
     _, policy = jax.lax.scan(scan_fun, Vf, xs=jnp.arange(N), reverse=True)
