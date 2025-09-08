@@ -3,12 +3,9 @@ A random collection of small projects
 
 ## TODO:
 ### ilqr-jax
-- Add protection against non-PD cost functions.
-    - For ensuring positive definite, consider a hybrid of the paper vs Stanford method?
-    - Actually Stanford method may just be the fastest, as the paper version has to compute the eigenvaues every iteration anyway...
-    - Unless we can implement a recursive eigenvalue update method?
 - Implement DDP
 - More documentation
+    - Add references (Stanford and Paper)
 - Consider updating functions that take (x0,u0) and convert to use Trajectory?
     - May make more sense if we rename Trajectory to StateActionPair? But is that better than current approach? Seems confusing?
 

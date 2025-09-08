@@ -168,6 +168,32 @@ def backwardPass_ilqr(dynamics: AffineDynamics, cost: QuadraticCostFunction, Vf:
     return policy
 
 
+def ensurePositiveDefinite(a, eps=1e-3):
+    w, v = jnp.linalg.eigh(a)
+    return (v * jnp.maximum(w, eps)) @ v.T
+
+
+def conditionQuadraticCost(quadratic_cost: QuadraticCostFunction):
+    """Ensure quadratic cost is strictly positive definite"""
+
+    (c, c_x, c_u, c_xx, c_ux, c_uu) = quadratic_cost
+
+    n = c_xx.shape[1]
+    m = c_uu.shape[1]
+
+    c_zz = jnp.block([[c_xx, c_ux.transpose(0, 2, 1)], [c_ux, c_uu]])
+    c_zz = jax.vmap(ensurePositiveDefinite)(c_zz)
+    c_xx, c_uu, c_ux = c_zz[:, :n, :n], c_zz[:, -m:, -m:], c_zz[:, -m:, :n]
+
+    return QuadraticCostFunction(c, c_x, c_u, c_xx, c_ux, c_uu)
+
+
+def conditionValueFunction(Vf: QuadraticValueFunction):
+    v, v_x, v_xx = Vf
+    v_xx = ensurePositiveDefinite(Vf.v_xx)
+    return QuadraticValueFunction(v, v_x, v_xx)
+
+
 @partial(jax.jit, static_argnames=["dynamics", "runningCost", "terminalCost"])
 def iterativeLqr(
     dynamics: Callable[[jnp.array, jnp.array], jnp.array],
@@ -218,6 +244,9 @@ def iterativeLqr(
         affine_dynamics = AffineDynamics.from_trajectory(dynamics, traj)
         quadratic_cost = QuadraticCostFunction.from_trajectory(cost, traj)
         Vf = QuadraticValueFunction.fromTerminalCostFunction(cost, traj.xTraj[-1])
+
+        quadratic_cost = conditionQuadraticCost(quadratic_cost)
+        Vf = conditionValueFunction(Vf)
 
         policy = backwardPass_ilqr(affine_dynamics, quadratic_cost, Vf)
         traj_new, J_new = forwardPass2(x0, dynamics, cost, policy, traj)
