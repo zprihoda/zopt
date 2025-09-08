@@ -9,6 +9,7 @@ from zProj.jaxUtils import maybeJit, maybeJitCls
 from zProj.pytrees import (
     Trajectory,
     AffineDynamics,
+    QuadraticDynamics,
     AffinePolicy,
     QuadraticCostFunction,
     QuadraticValueFunction,
@@ -168,6 +169,37 @@ def backwardPass_ilqr(dynamics: AffineDynamics, cost: QuadraticCostFunction, Vf:
     return policy
 
 
+def riccatiStep_ddp(dynamics: QuadraticDynamics, cost: QuadraticCostFunction,
+                    value: QuadraticValueFunction) -> tuple[QuadraticValueFunction, AffinePolicy]:
+    """Perform one step of the backwards Ricatti recursion"""
+    _, f_x, f_u, f_xx, f_ux, f_uu = dynamics
+    c, c_x, c_u, c_xx, c_ux, c_uu = cost
+    v, v_x, v_xx = value
+
+    Q = c + v
+    Q_x = c_x + f_x.T @ v_x
+    Q_u = c_u + f_u.T @ v_x
+    Q_xx = c_xx + f_x.T @ v_xx @ f_x + jnp.einsum('i,ijk', v_x, f_xx)
+    Q_uu = c_uu + f_u.T @ v_xx @ f_u + jnp.einsum('i,ijk', v_x, f_uu)
+    Q_ux = c_ux + f_u.T @ v_xx @ f_x + jnp.einsum('i,ijk', v_x, f_ux)
+
+    l = -jnp.linalg.solve(Q_uu, Q_u)
+    L = -jnp.linalg.solve(Q_uu, Q_ux)
+
+    valueOut = QuadraticValueFunction(Q - 0.5 * l.T @ Q_uu @ l, Q_x - L.T @ Q_uu @ l, Q_xx - L.T @ Q_uu @ L)
+
+    policy = AffinePolicy(l, L)
+    return valueOut, policy
+
+
+def backwardPass_ddp(dynamics: QuadraticDynamics, cost: QuadraticCostFunction, Vf: QuadraticValueFunction):
+    """Backwards pass of the ILQR algorithm"""
+    N = len(cost.c)
+    scan_fun = lambda V, k: riccatiStep_ddp(dynamics[k], cost[k], V)
+    _, policy = jax.lax.scan(scan_fun, Vf, xs=jnp.arange(N), reverse=True)
+    return policy
+
+
 def ensurePositiveDefinite(a, eps=1e-3):
     w, v = jnp.linalg.eigh(a)
     return (v * jnp.maximum(w, eps)) @ v.T
@@ -186,6 +218,11 @@ def conditionQuadraticCost(quadratic_cost: QuadraticCostFunction):
     c_xx, c_uu, c_ux = c_zz[:, :n, :n], c_zz[:, -m:, -m:], c_zz[:, -m:, :n]
 
     return QuadraticCostFunction(c, c_x, c_u, c_xx, c_ux, c_uu)
+
+
+def conditionQuadraticDynamics(quadratic_dynamics: QuadraticDynamics):
+    # TODO
+    return quadratic_dynamics
 
 
 def conditionValueFunction(Vf: QuadraticValueFunction):
@@ -258,6 +295,76 @@ def iterativeLqr(
         return (traj, J, converged, iter)
 
     out = jax.lax.while_loop(ilqrCond, ilqrStep, (traj, J, False, 0))
+    traj, J, converged, iter = out
+
+    return traj, J, converged
+
+
+@partial(jax.jit, static_argnames=["dynamics", "runningCost", "terminalCost"])
+def differentialDynamicProgramming(
+    dynamics: Callable[[jnp.array, jnp.array], jnp.array],
+    runningCost: Callable[[jnp.array, jnp.array], float],
+    terminalCost: Callable[[jnp.array], float],
+    x0: jnp.array,
+    uGuess: jnp.array,
+    maxIter=100,
+    tol=1e-3
+) -> tuple[Trajectory, float, bool]:
+    """
+    Differential dynamic programming algorithm
+
+    Arguments
+    ---------
+        dynamics : Discrete dynamics function: `xOut = f(x,u)`
+        runningCost : Running cost function: `j = c(x,u)`
+        terminalCost : Terminal cost function `j = cf(xf)`
+        x0 : Initial state
+        uGuess : Initial guess for control trajectory
+        maxIter : Maximum number of ilqr iterations
+        tol : Convergence tolerance: `abs(J_prev - J) <= tol`
+
+    Returns
+    -------
+    traj : Output trajectory
+    J : Cost
+    converged : Whether ddp converged
+    """
+    n = x0.shape[0]
+    N, m = uGuess.shape
+    cost = CostFunction(runningCost, terminalCost)
+    policy = AffinePolicy(uGuess, jnp.zeros((N, m, n)))
+    traj_prev = Trajectory(jnp.zeros((N + 1, n)), jnp.zeros((N, m)))
+
+    # Rollout initial trajectory
+    traj = trajectoryRollout(x0, dynamics, policy, traj_prev)
+    J = cost(traj)
+
+    # DDP loop
+    def ddpCond(loopVars):
+        traj, J, converged, iter = loopVars
+        return jnp.logical_not(converged) & (iter < maxIter)
+
+    def ddpStep(loopVars):
+        traj, J, converged, iter = loopVars
+
+        quadratic_dynamics = QuadraticDynamics.from_trajectory(dynamics, traj)
+        quadratic_cost = QuadraticCostFunction.from_trajectory(cost, traj)
+        Vf = QuadraticValueFunction.fromTerminalCostFunction(cost, traj.xTraj[-1])
+
+        quadratic_dynamics = conditionQuadraticDynamics(quadratic_dynamics)
+        quadratic_cost = conditionQuadraticCost(quadratic_cost)
+        Vf = conditionValueFunction(Vf)
+
+        policy = backwardPass_ddp(quadratic_dynamics, quadratic_cost, Vf)
+        traj_new, J_new = forwardPass2(x0, dynamics, cost, policy, traj)
+
+        converged = abs(J - J_new) <= tol
+        traj = traj_new
+        J = J_new
+        iter += 1
+        return (traj, J, converged, iter)
+
+    out = jax.lax.while_loop(ddpCond, ddpStep, (traj, J, False, 0))
     traj, J, converged, iter = out
 
     return traj, J, converged

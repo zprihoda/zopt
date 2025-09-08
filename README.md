@@ -4,10 +4,13 @@ A random collection of small projects
 ## TODO:
 ### ilqr-jax
 - Implement DDP
-- More documentation
+    - Implement conditionQuadraticDynamics
+    - Add tests for quadraticDynamics pytree
+    - Add tests for ddp riccati and ddp backward pass
+    - Add DDP test
+- Documentation
+    - Add documentation to pytrees
     - Add references (Stanford and Paper)
-- Consider updating functions that take (x0,u0) and convert to use Trajectory?
-    - May make more sense if we rename Trajectory to StateActionPair? But is that better than current approach? Seems confusing?
 
 ### All
 - ilqr-jax:
