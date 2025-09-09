@@ -5,7 +5,6 @@ A random collection of small projects
 ### ilqr-jax
 - Implement DDP
     - Implement conditionQuadraticDynamics
-    - Add tests for quadraticDynamics pytree
     - Add tests for ddp riccati and ddp backward pass
     - Add DDP test
 - Documentation

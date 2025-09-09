@@ -236,6 +236,73 @@ def test_AffineDynamics_fromTrajectory():
     assert jnp.all(dynamics[1].f_u == f_u)
 
 
+def test_QuadraticDynamics_base():
+    f = jnp.array([0, 0])
+    f_x = jnp.eye(2)
+    f_u = jnp.eye(2)
+    f_xx = jnp.array([jnp.eye(2), 2 * jnp.eye(2)])
+    f_ux = jnp.zeros((2, 2, 2))
+    f_uu = jnp.array([jnp.eye(2), 2 * jnp.eye(2)])
+    dyn = pytrees.QuadraticDynamics(f, f_x, f_u, f_xx, f_ux, f_uu)
+
+    assert jnp.all(dyn.f == f)
+    assert jnp.all(dyn.f_x == f_x)
+    assert jnp.all(dyn.f_u == f_u)
+    assert jnp.all(dyn.f_xx == f_xx)
+    assert jnp.all(dyn.f_ux == f_ux)
+    assert jnp.all(dyn.f_uu == f_uu)
+
+    x = jnp.array([1, 0])
+    u = jnp.array([0, 1])
+    out = dyn(x, u)
+
+    assert jnp.all(out == jnp.array([2., 3]))
+
+
+def test_QuadraticDynamics_fromFunction():
+    f = jnp.array([0, 0])
+    f_x = jnp.eye(2)
+    f_u = jnp.eye(2)
+    f_xx = jnp.array([jnp.eye(2), 2 * jnp.eye(2)])
+    f_ux = jnp.zeros((2, 2, 2))
+    f_uu = jnp.array([jnp.eye(2), 2 * jnp.eye(2)])
+    dynFun = lambda x, u: f + f_x @ x + f_u @ u + 0.5 * (x.T @ f_xx @ x + 2 * u.T @ f_ux @ x + u.T @ f_uu @ u)
+    dynQuad = pytrees.QuadraticDynamics.from_function(dynFun, jnp.zeros(2), jnp.zeros(2))
+
+    assert jnp.all(dynQuad.f == f)
+    assert jnp.all(dynQuad.f_x == f_x)
+    assert jnp.all(dynQuad.f_u == f_u)
+    assert jnp.all(dynQuad.f_xx == f_xx)
+    assert jnp.all(dynQuad.f_ux == f_ux)
+    assert jnp.all(dynQuad.f_uu == f_uu)
+
+
+def test_QuadraticDynamics_fromTrajectory():
+    f = jnp.array([0, 0])
+    f_x = jnp.eye(2)
+    f_u = jnp.eye(2)
+    f_xx = jnp.array([jnp.eye(2), 2 * jnp.eye(2)])
+    f_ux = jnp.zeros((2, 2, 2))
+    f_uu = jnp.array([jnp.eye(2), 2 * jnp.eye(2)])
+    dynFun = lambda x, u: f + f_x @ x + f_u @ u + 0.5 * (x.T @ f_xx @ x + 2 * u.T @ f_ux @ x + u.T @ f_uu @ u)
+    traj = pytrees.Trajectory(jnp.zeros((3, 2)), jnp.zeros((2, 2)))
+    dynQuad = pytrees.QuadraticDynamics.from_trajectory(dynFun, traj)
+
+    assert jnp.all(dynQuad[0].f == f)
+    assert jnp.all(dynQuad[0].f_x == f_x)
+    assert jnp.all(dynQuad[0].f_u == f_u)
+    assert jnp.all(dynQuad[0].f_xx == f_xx)
+    assert jnp.all(dynQuad[0].f_ux == f_ux)
+    assert jnp.all(dynQuad[0].f_uu == f_uu)
+
+    assert jnp.all(dynQuad[1].f == f)
+    assert jnp.all(dynQuad[1].f_x == f_x)
+    assert jnp.all(dynQuad[1].f_u == f_u)
+    assert jnp.all(dynQuad[1].f_xx == f_xx)
+    assert jnp.all(dynQuad[1].f_ux == f_ux)
+    assert jnp.all(dynQuad[1].f_uu == f_uu)
+
+
 def test_AffinePolicy_base():
     l = jnp.array([1, 2])
     L = jnp.array([[1, 2], [3, 4]])

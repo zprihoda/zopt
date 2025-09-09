@@ -143,6 +143,7 @@ class QuadraticDynamics(NamedTuple):
     @classmethod
     def from_function(cls, dynFun: Callable[[jnp.ndarray, jnp.ndarray], jnp.ndarray], x0: jnp.ndarray, u0: jnp.ndarray):
         """Second order Taylor series expansion of cost function `c(x,u)` about (x0,u0)"""
+        f = dynFun(x0, u0)
         f_x, f_u = jax.jacobian(dynFun, argnums=(0, 1))(x0, u0)
         ((f_xx, _), (f_ux, f_uu)) = jax.hessian(dynFun, (0, 1))(x0, u0)
         return cls(f, f_x, f_u, f_xx, f_ux, f_uu)
