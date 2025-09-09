@@ -1,11 +1,8 @@
 import jax
 import jax.numpy as jnp
-import numpy as np
-import warnings
 
 from functools import partial
 from typing import Callable
-from zProj.jaxUtils import maybeJit, maybeJitCls
 from zProj.pytrees import (
     Trajectory,
     AffineDynamics,
@@ -172,16 +169,18 @@ def backwardPass_ilqr(dynamics: AffineDynamics, cost: QuadraticCostFunction, Vf:
 def riccatiStep_ddp(dynamics: QuadraticDynamics, cost: QuadraticCostFunction,
                     value: QuadraticValueFunction) -> tuple[QuadraticValueFunction, AffinePolicy]:
     """Perform one step of the backwards Ricatti recursion"""
-    _, f_x, f_u, f_xx, f_ux, f_uu = dynamics
     c, c_x, c_u, c_xx, c_ux, c_uu = cost
     v, v_x, v_xx = value
+
+    _, f_x, f_u, _, _, _ = dynamics
+    vf_xx, vf_ux, vf_uu = conditionQuadraticDynamics(dynamics, v_x)
 
     Q = c + v
     Q_x = c_x + f_x.T @ v_x
     Q_u = c_u + f_u.T @ v_x
-    Q_xx = c_xx + f_x.T @ v_xx @ f_x + jnp.einsum('i,ijk', v_x, f_xx)
-    Q_uu = c_uu + f_u.T @ v_xx @ f_u + jnp.einsum('i,ijk', v_x, f_uu)
-    Q_ux = c_ux + f_u.T @ v_xx @ f_x + jnp.einsum('i,ijk', v_x, f_ux)
+    Q_xx = c_xx + f_x.T @ v_xx @ f_x + vf_xx
+    Q_uu = c_uu + f_u.T @ v_xx @ f_u + vf_uu
+    Q_ux = c_ux + f_u.T @ v_xx @ f_x + vf_ux
 
     l = -jnp.linalg.solve(Q_uu, Q_u)
     L = -jnp.linalg.solve(Q_uu, Q_ux)
@@ -220,9 +219,21 @@ def conditionQuadraticCost(quadratic_cost: QuadraticCostFunction):
     return QuadraticCostFunction(c, c_x, c_u, c_xx, c_ux, c_uu)
 
 
-def conditionQuadraticDynamics(quadratic_dynamics: QuadraticDynamics):
-    # TODO
-    return quadratic_dynamics
+def conditionQuadraticDynamics(quadratic_dynamics: QuadraticDynamics, v_x: jnp.ndarray):
+    """Ensure the quadratic terms of the DDP riccati step are positive definite"""
+    _, _, _, f_xx, f_ux, f_uu = quadratic_dynamics
+    vf_xx = jnp.einsum('i,ijk', v_x, f_xx)
+    vf_uu = jnp.einsum('i,ijk', v_x, f_uu)
+    vf_ux = jnp.einsum('i,ijk', v_x, f_ux)
+
+    n = vf_xx.shape[0]
+    m = vf_uu.shape[0]
+
+    vf_zz = jnp.block([[vf_xx, vf_ux.T], [vf_ux, vf_uu]])
+    vf_zz = ensurePositiveDefinite(vf_zz)
+    vf_xx, vf_uu, vf_ux = vf_zz[:, :n, :n], vf_zz[:, -m:, -m:], vf_zz[:, -m:, :n]
+
+    return vf_xx, vf_uu, vf_ux
 
 
 def conditionValueFunction(Vf: QuadraticValueFunction):
@@ -351,7 +362,6 @@ def differentialDynamicProgramming(
         quadratic_cost = QuadraticCostFunction.from_trajectory(cost, traj)
         Vf = QuadraticValueFunction.fromTerminalCostFunction(cost, traj.xTraj[-1])
 
-        quadratic_dynamics = conditionQuadraticDynamics(quadratic_dynamics)
         quadratic_cost = conditionQuadraticCost(quadratic_cost)
         Vf = conditionValueFunction(Vf)
 
