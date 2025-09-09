@@ -3,10 +3,7 @@ A random collection of small projects
 
 ## TODO:
 ### ilqr-jax
-- Implement DDP
-    - Implement conditionQuadraticDynamics
-    - Add tests for ddp riccati and ddp backward pass
-    - Add DDP test
+- Update demos
 - Documentation
     - Add documentation to pytrees
     - Add references (Stanford and Paper)

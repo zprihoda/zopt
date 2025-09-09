@@ -231,7 +231,7 @@ def conditionQuadraticDynamics(quadratic_dynamics: QuadraticDynamics, v_x: jnp.n
 
     vf_zz = jnp.block([[vf_xx, vf_ux.T], [vf_ux, vf_uu]])
     vf_zz = ensurePositiveDefinite(vf_zz)
-    vf_xx, vf_uu, vf_ux = vf_zz[:, :n, :n], vf_zz[:, -m:, -m:], vf_zz[:, -m:, :n]
+    vf_xx, vf_uu, vf_ux = vf_zz[:n, :n], vf_zz[-m:, -m:], vf_zz[-m:, :n]
 
     return vf_xx, vf_uu, vf_ux
 

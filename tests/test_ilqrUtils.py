@@ -1,6 +1,6 @@
 import jax
 import jax.numpy as jnp
-import numpy as np
+import pytest
 import zProj.ilqrUtils as ilqr
 import zProj.pytrees as pytrees
 
@@ -84,7 +84,7 @@ def test_riccatiStep_ilqr():
     assert jnp.all(policy.L == -0.5 * jnp.eye(2))
 
 
-def test_backwardPass():
+def test_backwardPass_ilqr():
     N = 2
     A = jnp.repeat(jnp.eye(2)[None, :, :], N, axis=0)
     B = jnp.repeat(jnp.eye(2)[None, :, :], N, axis=0)
@@ -109,6 +109,62 @@ def test_backwardPass():
     # Dummy checks, just verify we run without error
     assert isinstance(policy, pytrees.AffinePolicy)
 
+def test_riccatiStep_ddp():
+    A = jnp.eye(2)
+    B = jnp.eye(2)
+    f = jnp.zeros(2)
+
+    c = 0
+    c_x = jnp.zeros(2)
+    c_u = jnp.zeros(2)
+    c_xx = jnp.eye(2)
+    c_uu = jnp.eye(2)
+    c_ux = jnp.zeros((2, 2))
+
+    v = 0
+    v_x = jnp.zeros(2)
+    v_xx = c_xx
+
+    dynamics = (f, A, B, jnp.zeros((2,2,2)), jnp.zeros((2,2,2)), jnp.zeros((2,2,2)))
+    cost = (c, c_x, c_u, c_xx, c_ux, c_uu)
+    value = (v, v_x, v_xx)
+    valueOut, policy = ilqr.riccatiStep_ddp(dynamics, cost, value)
+
+    assert valueOut.v == 0
+    assert valueOut.v_x == pytest.approx(jnp.array([0, 0]))
+    assert valueOut.v_xx == pytest.approx(1.5 * jnp.eye(2))
+    assert policy.l == pytest.approx(jnp.array([0, 0]))
+    assert policy.L == pytest.approx(-0.5 * jnp.eye(2), rel=1e-3)
+
+
+def test_backwardPass_ddp():
+    N = 2
+    A = jnp.repeat(jnp.eye(2)[None, :, :], N, axis=0)
+    B = jnp.repeat(jnp.eye(2)[None, :, :], N, axis=0)
+    C = jnp.repeat(jnp.array([jnp.eye(2), jnp.eye(2)])[None, :, :, :], N, axis=0)
+    D = jnp.repeat(jnp.array([jnp.eye(2), jnp.eye(2)])[None, :, :, :], N, axis=0)
+    E = jnp.zeros((N,2,2,2))
+    f = jnp.zeros((N, 2))
+
+    c = jnp.zeros(N)
+    c_x = jnp.zeros((N, 2))
+    c_u = jnp.zeros((N, 2))
+    c_xx = jnp.repeat(jnp.eye(2)[None, :, :], N, axis=0)
+    c_uu = jnp.repeat(jnp.eye(2)[None, :, :], N, axis=0)
+    c_ux = jnp.zeros((N, 2, 2))
+
+    v = 0
+    v_x = jnp.zeros(2)
+    v_xx = c_xx[-1]
+
+    dynamics = pytrees.QuadraticDynamics(f, A, B, C, D, E)
+    cost = pytrees.QuadraticCostFunction(c, c_x, c_u, c_xx, c_ux, c_uu)
+    value = pytrees.QuadraticValueFunction(v, v_x, v_xx)
+    policy = ilqr.backwardPass_ddp(dynamics, cost, value)
+
+    # Dummy checks, just verify we run without error
+    assert isinstance(policy, pytrees.AffinePolicy)
+
 
 def test_iterativeLqr():
     A = jnp.eye(2)
@@ -124,3 +180,20 @@ def test_iterativeLqr():
 
     trajectory, J, converged = ilqr.iterativeLqr(dynamics, runningCost, terminalCost, x0, uGuess)
     assert converged
+
+def test_differentialDynamicProgramming():
+    A = jnp.eye(2)
+    B = jnp.eye(2)
+    Q = jnp.eye(2)
+    R = jnp.eye(2)
+    N = 3
+    dynamics = lambda x, u: A @ x + B @ u
+    runningCost = lambda x, u: x @ Q @ x + u @ R @ u
+    terminalCost = lambda x: x @ Q @ x
+    x0 = jnp.array([2., 1])
+    uGuess = jnp.zeros((N, 2))
+
+    trajectory, J, converged = ilqr.differentialDynamicProgramming(dynamics, runningCost, terminalCost, x0, uGuess)
+    assert converged
+
+test_backwardPass_ddp()
