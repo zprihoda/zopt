@@ -128,7 +128,7 @@ class AffineDynamics(NamedTuple):
 
 class QuadraticDynamics(NamedTuple):
     """
-    Affine dynamics of the form:
+    Quadratic dynamics of the form:
     ```
     f(x,u) = f + f_x @ x + f_u @ u + 0.5 * (x.T @ f_xx @ x + 2*u.T @ f_ux @ x + u.T @ f_uu @ u)
     ```
@@ -142,7 +142,7 @@ class QuadraticDynamics(NamedTuple):
 
     @classmethod
     def from_function(cls, dynFun: Callable[[jnp.ndarray, jnp.ndarray], jnp.ndarray], x0: jnp.ndarray, u0: jnp.ndarray):
-        """Second order Taylor series expansion of cost function `c(x,u)` about (x0,u0)"""
+        """Second order Taylor series expansion of dynamics function `f(x,u)` about (x0,u0)"""
         f = dynFun(x0, u0)
         f_x, f_u = jax.jacobian(dynFun, argnums=(0, 1))(x0, u0)
         ((f_xx, _), (f_ux, f_uu)) = jax.hessian(dynFun, (0, 1))(x0, u0)
@@ -150,14 +150,14 @@ class QuadraticDynamics(NamedTuple):
 
     @classmethod
     def from_trajectory(cls, dynFun: Callable[[jnp.ndarray, jnp.ndarray], jnp.ndarray], traj: Trajectory):
-        """Second order Taylor series expansion of cost function `c(x,u)` about (xTraj,uTraj)"""
+        """Second order Taylor series expansion of dynamics function `f(x,u)` about (xTraj,uTraj)"""
         xTraj, uTraj = traj
         return jax.vmap(lambda x0, u0: cls.from_function(dynFun, x0, u0))(xTraj[:-1], uTraj)
 
     def __call__(self, x: jnp.ndarray, u: jnp.ndarray, k: int = None):
         f, f_x, f_u, f_xx, f_ux, f_uu = self
         if k is None and f.ndim != 1:
-            raise ValueError("Must specify index for multi-dimensional cost")
+            raise ValueError("Must specify index for trajectories")
         return f + f_x @ x + f_u @ u + 0.5 * (x.T @ f_xx @ x + 2 * u.T @ f_ux @ x +
                                               u.T @ f_uu @ u) if k is None else self[k](x, u)
 
