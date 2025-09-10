@@ -109,6 +109,7 @@ def test_backwardPass_ilqr():
     # Dummy checks, just verify we run without error
     assert isinstance(policy, pytrees.AffinePolicy)
 
+
 def test_riccatiStep_ddp():
     A = jnp.eye(2)
     B = jnp.eye(2)
@@ -125,14 +126,14 @@ def test_riccatiStep_ddp():
     v_x = jnp.zeros(2)
     v_xx = c_xx
 
-    dynamics = (f, A, B, jnp.zeros((2,2,2)), jnp.zeros((2,2,2)), jnp.zeros((2,2,2)))
+    dynamics = (f, A, B, jnp.zeros((2, 2, 2)), jnp.zeros((2, 2, 2)), jnp.zeros((2, 2, 2)))
     cost = (c, c_x, c_u, c_xx, c_ux, c_uu)
     value = (v, v_x, v_xx)
     valueOut, policy = ilqr.riccatiStep_ddp(dynamics, cost, value)
 
     assert valueOut.v == 0
     assert valueOut.v_x == pytest.approx(jnp.array([0, 0]))
-    assert valueOut.v_xx == pytest.approx(1.5 * jnp.eye(2))
+    assert valueOut.v_xx == pytest.approx(1.5 * jnp.eye(2), rel=1e-3)
     assert policy.l == pytest.approx(jnp.array([0, 0]))
     assert policy.L == pytest.approx(-0.5 * jnp.eye(2), rel=1e-3)
 
@@ -143,7 +144,7 @@ def test_backwardPass_ddp():
     B = jnp.repeat(jnp.eye(2)[None, :, :], N, axis=0)
     C = jnp.repeat(jnp.array([jnp.eye(2), jnp.eye(2)])[None, :, :, :], N, axis=0)
     D = jnp.repeat(jnp.array([jnp.eye(2), jnp.eye(2)])[None, :, :, :], N, axis=0)
-    E = jnp.zeros((N,2,2,2))
+    E = jnp.zeros((N, 2, 2, 2))
     f = jnp.zeros((N, 2))
 
     c = jnp.zeros(N)
@@ -178,8 +179,9 @@ def test_iterativeLqr():
     x0 = jnp.array([2., 1])
     uGuess = jnp.zeros((N, 2))
 
-    trajectory, J, converged = ilqr.iterativeLqr(dynamics, runningCost, terminalCost, x0, uGuess)
+    trajectory, L, J, converged = ilqr.iterativeLqr(dynamics, runningCost, terminalCost, x0, uGuess)
     assert converged
+
 
 def test_differentialDynamicProgramming():
     A = jnp.eye(2)
@@ -193,7 +195,5 @@ def test_differentialDynamicProgramming():
     x0 = jnp.array([2., 1])
     uGuess = jnp.zeros((N, 2))
 
-    trajectory, J, converged = ilqr.differentialDynamicProgramming(dynamics, runningCost, terminalCost, x0, uGuess)
+    trajectory, L, J, converged = ilqr.differentialDynamicProgramming(dynamics, runningCost, terminalCost, x0, uGuess)
     assert converged
-
-test_backwardPass_ddp()

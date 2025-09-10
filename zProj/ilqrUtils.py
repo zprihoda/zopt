@@ -233,7 +233,7 @@ def conditionQuadraticDynamics(quadratic_dynamics: QuadraticDynamics, v_x: jnp.n
     vf_zz = ensurePositiveDefinite(vf_zz)
     vf_xx, vf_uu, vf_ux = vf_zz[:n, :n], vf_zz[-m:, -m:], vf_zz[-m:, :n]
 
-    return vf_xx, vf_uu, vf_ux
+    return vf_xx, vf_ux, vf_uu
 
 
 def conditionValueFunction(Vf: QuadraticValueFunction):
@@ -251,7 +251,7 @@ def iterativeLqr(
     uGuess: jnp.array,
     maxIter=100,
     tol=1e-3
-) -> tuple[Trajectory, float, bool]:
+) -> tuple[Trajectory, jnp.ndarray, float, bool]:
     """
     Iterative LQR algorithm
 
@@ -268,7 +268,8 @@ def iterativeLqr(
     Returns
     -------
     traj : Output trajectory
-    J : Cost
+    L : LQR feedback gains: `u[k] = L[k] @ (x[k]-xTraj[k]) + uTraj[k]`
+    J : Corresponding cost
     converged : Whether ilqr converged
     """
     n = x0.shape[0]
@@ -283,11 +284,11 @@ def iterativeLqr(
 
     # ILQR loop
     def ilqrCond(loopVars):
-        traj, J, converged, iter = loopVars
+        traj, policy, J, converged, iter = loopVars
         return jnp.logical_not(converged) & (iter < maxIter)
 
     def ilqrStep(loopVars):
-        traj, J, converged, iter = loopVars
+        traj, policy, J, converged, iter = loopVars
 
         affine_dynamics = AffineDynamics.from_trajectory(dynamics, traj)
         quadratic_cost = QuadraticCostFunction.from_trajectory(cost, traj)
@@ -303,12 +304,12 @@ def iterativeLqr(
         traj = traj_new
         J = J_new
         iter += 1
-        return (traj, J, converged, iter)
+        return (traj, policy, J, converged, iter)
 
-    out = jax.lax.while_loop(ilqrCond, ilqrStep, (traj, J, False, 0))
-    traj, J, converged, iter = out
+    out = jax.lax.while_loop(ilqrCond, ilqrStep, (traj, policy, J, False, 0))
+    traj, policy, J, converged, iter = out
 
-    return traj, J, converged
+    return traj, policy.L, J, converged
 
 
 @partial(jax.jit, static_argnames=["dynamics", "runningCost", "terminalCost"])
@@ -320,7 +321,7 @@ def differentialDynamicProgramming(
     uGuess: jnp.array,
     maxIter=100,
     tol=1e-3
-) -> tuple[Trajectory, float, bool]:
+) -> tuple[Trajectory, jnp.ndarray, float, bool]:
     """
     Differential dynamic programming algorithm
 
@@ -337,6 +338,7 @@ def differentialDynamicProgramming(
     Returns
     -------
     traj : Output trajectory
+    L : LQR feedback gains: `u[k] = L[k] @ (x[k]-xTraj[k]) + uTraj[k]`
     J : Cost
     converged : Whether ddp converged
     """
@@ -352,11 +354,11 @@ def differentialDynamicProgramming(
 
     # DDP loop
     def ddpCond(loopVars):
-        traj, J, converged, iter = loopVars
+        traj, policy, J, converged, iter = loopVars
         return jnp.logical_not(converged) & (iter < maxIter)
 
     def ddpStep(loopVars):
-        traj, J, converged, iter = loopVars
+        traj, policy, J, converged, iter = loopVars
 
         quadratic_dynamics = QuadraticDynamics.from_trajectory(dynamics, traj)
         quadratic_cost = QuadraticCostFunction.from_trajectory(cost, traj)
@@ -372,9 +374,9 @@ def differentialDynamicProgramming(
         traj = traj_new
         J = J_new
         iter += 1
-        return (traj, J, converged, iter)
+        return (traj, policy, J, converged, iter)
 
-    out = jax.lax.while_loop(ddpCond, ddpStep, (traj, J, False, 0))
-    traj, J, converged, iter = out
+    out = jax.lax.while_loop(ddpCond, ddpStep, (traj, policy, J, False, 0))
+    traj, policy, J, converged, iter = out
 
-    return traj, J, converged
+    return traj, policy.L, J, converged
