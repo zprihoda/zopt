@@ -1,3 +1,4 @@
+import jax.numpy as jnp
 import numpy as np
 import pytest
 
@@ -34,7 +35,7 @@ def test_finiteHorizonLqr():
     R = lambda t: np.eye(2)
     Qf = np.eye(2)
     T = 1
-    K = lqr.finiteHorizonLqr(A, B, Q, R, Qf, T)
+    K = lqr.finiteHorizonLqr(A, B, Q, R, Qf, T, N=4)
     assert K(T) == pytest.approx(np.eye(2))  # From V(T) = Qf, K(T) = R(T)^{-1} @ B(T).T @ V(T)
 
     # Analytical solution to the scalar form of the above Ricatti equation
@@ -59,10 +60,10 @@ def test_infiniteHorizonIntegralLqr():
 
 def test_discreteFiniteHorizonLqr():
     N = 2
-    A = np.repeat(np.eye(2)[None, :, :], N, axis=0)
-    B = np.repeat(np.eye(2)[None, :, :], N, axis=0)
-    Q = np.repeat(np.eye(2)[None, :, :], N, axis=0)
-    R = np.repeat(np.eye(2)[None, :, :], N, axis=0)
+    A = jnp.repeat(jnp.eye(2)[None, :, :], N, axis=0)
+    B = jnp.repeat(jnp.eye(2)[None, :, :], N, axis=0)
+    Q = jnp.repeat(jnp.eye(2)[None, :, :], N, axis=0)
+    R = jnp.repeat(jnp.eye(2)[None, :, :], N, axis=0)
     K = lqr.discreteFiniteHorizonLqr(A, B, Q, R, N)
     assert K[1] == pytest.approx(0.5 * np.eye(2))
     assert K[0] == pytest.approx(0.6 * np.eye(2))
@@ -80,21 +81,21 @@ def test_discreteInfiniteHorizonLqr():
 
 def test_bilinearAffineLqr():
     N = 2
-    A = np.repeat(np.eye(2)[None, :, :], N, axis=0)
-    B = np.repeat(np.eye(2)[None, :, :], N, axis=0)
-    d = np.repeat(np.ones(2)[None, :], N, axis=0)
-    Q = np.repeat(np.eye(2)[None, :, :], N, axis=0)
-    R = np.repeat(np.eye(2)[None, :, :], N, axis=0)
-    H = np.repeat(np.eye(2)[None, :, :], N, axis=0)
-    q = np.repeat(np.ones(2)[None, :], N, axis=0)
-    r = np.repeat(np.ones(2)[None, :], N, axis=0)
-    q0 = np.ones(N)
+    A = jnp.repeat(jnp.eye(2)[None, :, :], N, axis=0)
+    B = jnp.repeat(jnp.eye(2)[None, :, :], N, axis=0)
+    d = jnp.repeat(jnp.ones(2)[None, :], N, axis=0)
+    Q = jnp.repeat(jnp.eye(2)[None, :, :], N, axis=0)
+    R = jnp.repeat(jnp.eye(2)[None, :, :], N, axis=0)
+    H = jnp.repeat(jnp.eye(2)[None, :, :], N, axis=0)
+    q = jnp.repeat(jnp.ones(2)[None, :], N, axis=0)
+    r = jnp.repeat(jnp.ones(2)[None, :], N, axis=0)
+    q0 = jnp.ones(N)
     K, k = lqr.bilinearAffineLqr(A, B, d, Q, R, H, q, r, q0, N)
 
-    assert K[1] == pytest.approx(np.eye(2))
-    assert k[1] == pytest.approx(1.5 * np.ones(2))
-    assert K[0] == pytest.approx(np.eye(2))
-    assert k[0] == pytest.approx(np.ones(2))
+    assert K[1] == pytest.approx(jnp.eye(2))
+    assert k[1] == pytest.approx(1.5 * jnp.ones(2))
+    assert K[0] == pytest.approx(jnp.eye(2))
+    assert k[0] == pytest.approx(jnp.ones(2))
 
 
 def test_proportionalFeedbackController():

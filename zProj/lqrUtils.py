@@ -1,10 +1,12 @@
+import jax
+import jax.numpy as jnp
 import numpy as np
 import numpy.linalg as npl
 import scipy.linalg as spl
-import scipy.integrate as spi
 
-from zProj.jaxUtils import interpMapped
+from jax.experimental.ode import odeint
 from typing import Callable
+from zProj.jaxUtils import interpMapped
 
 
 ## LQR Algorithms
@@ -56,7 +58,8 @@ def finiteHorizonLqr(
     Q: Callable[[float], np.ndarray],
     R_inv: Callable[[float], np.ndarray],
     Qf: np.ndarray,
-    T: float
+    T: float,
+    N: int = 50
 ) -> Callable[[float], np.ndarray]:
     """
     Compute the finite horizon LQR gains by numerically integrating the LQR HJB equation
@@ -75,6 +78,7 @@ def finiteHorizonLqr(
         R_inv : Inverse of control cost matrix as a function of time: `R_inv(t)`
         Qf : Terminal state cost matrix
         T : Time horizon
+        N : Number of ODE time steps.
 
     Returns
     -------
@@ -83,13 +87,12 @@ def finiteHorizonLqr(
     # Solve the LQR HJB equation
     V0 = Qf.reshape(-1)
     n = A(0).shape[0]
-    dV = lambda t, V: _lqrHjb(t, V, A, B, Q, R_inv, n)
-    out = spi.solve_ivp(dV, (T, 0), V0)
+    t = jnp.linspace(0, T, num=N)
+    dV = lambda V, t: -_lqrHjb(T - t, V, A, B, Q, R_inv, n)
+    out = odeint(dV, V0, t)
 
     # Setup gain interpolation function
-    t = out.t[::-1]  # Flip to forward time
-    V = out.y[:, ::-1]
-
+    V = out[::-1].T
     Vfun = lambda tq: interpMapped(tq, t, V)
     K = lambda t: R_inv(t) @ B(t).T @ Vfun(t).reshape((n, n))
     return K
@@ -138,13 +141,7 @@ def infiniteHorizonIntegralLqr(
     return Ki, Kp
 
 
-def discreteFiniteHorizonLqr(
-    A: Callable[[int], np.ndarray],
-    B: Callable[[int], np.ndarray],
-    Q: Callable[[int], np.ndarray],
-    R: Callable[[int], np.ndarray],
-    N: int
-) -> np.ndarray:
+def discreteFiniteHorizonLqr(A: jnp.ndarray, B: jnp.ndarray, Q: jnp.ndarray, R: jnp.ndarray, N: int) -> np.ndarray:
     """
     Compute the finite horizon LQR gains by numerically integrating the LQR HJB equation
 
@@ -156,23 +153,23 @@ def discreteFiniteHorizonLqr(
 
     Arguments
     ---------
-        A : State-space state matrix as a function of time step: `A[k]`
-        B : State-space input matrix as a function of time step: `B[k]`
-        Q : State cost matrix as a function of time step: `Q[k]`
-        R : Control cost matrix as a function of time step: `R[k]`
+        A : State-space state matrix with time along the first axis: `A[k]`
+        B : State-space input matrix with time along the first axis: `B[k]`
+        Q : State cost matrix with time along the first axis: `Q[k]`
+        R : Control cost matrix with time along the first axis: `R[k]`
         N : Time step horizon
 
     Returns
     -------
         L : Optimal LQR gains indexed by time step: `L[k]`
     """
-    V = Q[-1]
-    nx, nu = B[0].shape
-    L = np.zeros((N, nu, nx))
-    for i in range(N):
-        k = N - (i + 1)
-        L[k] = npl.solve(R[k] + B[k].T @ V @ B[k], B[k].T @ V @ A[k])
-        V = Q[k] + L[k].T @ R[k] @ L[k] + (A[k] - B[k] @ L[k]).T @ V @ (A[k] - B[k] @ L[k])
+
+    def riccatiStep(V, k):
+        L = jnp.linalg.solve(R[k] + B[k].T @ V @ B[k], B[k].T @ V @ A[k])
+        V = Q[k] + L.T @ R[k] @ L + (A[k] - B[k] @ L).T @ V @ (A[k] - B[k] @ L)
+        return V, L
+
+    _, L = jax.lax.scan(riccatiStep, Q[-1], xs=jnp.arange(N), reverse=True)
     return L
 
 
@@ -208,17 +205,17 @@ def discreteInfiniteHorizonLqr(
 
 
 def bilinearAffineLqr(
-    A: np.ndarray,
-    B: np.ndarray,
-    d: np.ndarray,
-    Q: np.ndarray,
-    R: np.ndarray,
-    H: np.ndarray,
-    q: np.ndarray,
-    r: np.ndarray,
-    q0: np.ndarray,
+    A: jnp.ndarray,
+    B: jnp.ndarray,
+    d: jnp.ndarray,
+    Q: jnp.ndarray,
+    R: jnp.ndarray,
+    H: jnp.ndarray,
+    q: jnp.ndarray,
+    r: jnp.ndarray,
+    q0: jnp.ndarray,
     N: int
-) -> tuple[np.ndarray, np.ndarray]:
+) -> tuple[jnp.ndarray, jnp.ndarray]:
     """
     Finite Horizon LQR with bilinear cost and affine dynamics
 
@@ -242,20 +239,14 @@ def bilinearAffineLqr(
     """
     (n, m) = B.shape[1:]
 
-    # Initialize
-    V = Q[-1]
-    v = q[-1]
-    v0 = q0[-1]
-
-    LArr = np.zeros((N, m, n))
-    lArr = np.zeros((N, m))
-    for k in range(N - 1, -1, -1):
+    def bilinearRiccatiStep(Values, k):
+        (V, v, v0) = Values
         Su = r[k] + v.T @ B[k] + d[k].T @ V @ B[k]
         Suu = R[k] + B[k].T @ V @ B[k]
         Sux = H[k] + B[k].T @ V @ A[k]
 
-        L = np.linalg.solve(Suu, Sux)
-        l = np.linalg.solve(Suu, Su)  # TODO: Combine with above solve to speed up computation (only one factorization)
+        L = jnp.linalg.solve(Suu, Sux)
+        l = jnp.linalg.solve(Suu, Su)
 
         VNew = Q[k] + A[k].T @ V @ A[k] - L.T @ Suu @ L
         vNew = q[k] + A[k].T @ (v + V @ d[k]) - Sux.T @ l
@@ -265,9 +256,9 @@ def bilinearAffineLqr(
         v = vNew
         v0 = v0New
 
-        LArr[k] = L
-        lArr[k] = l
+        return ((V, v, v0), (L, l))
 
+    _, (LArr, lArr) = jax.lax.scan(bilinearRiccatiStep, (Q[-1], q[-1], q0[-1]), xs=jnp.arange(N), reverse=True)
     return LArr, lArr
 
 

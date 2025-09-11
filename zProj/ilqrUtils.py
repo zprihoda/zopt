@@ -1,396 +1,397 @@
+"""
+Iterative LQR / Differential dynamic programming module
+- Algorithm based on Stanford AA203 notes and [TET12]
+- Several jax compatible improvements from StanfordASL/AA203-examples
+    - In particular see forwardPass2, ensurePositiveDefinite and the base NamedTuple pytree object architecture
+
+References
+----------
+- [TET12]: Yuval Tassa, Tom Erez, and Emanuel Todorov. Synthesis and stabilization of complex behaviors through
+    online trajectory optimization. In IEEE International Conference on Intelligent Robots and Systems (IROS),
+    2012.
+- StanfordASL/AA203-notes: https://github.com/StanfordASL/AA203-Notes
+- StanfordASL/AA203-examples: https://github.com/StanfordASL/AA203-Examples/blob/master/LQR%20Variants.ipynb
+"""
+
 import jax
 import jax.numpy as jnp
-import numpy as np
-import warnings
 
+from functools import partial
 from typing import Callable
-from zProj.jaxUtils import maybeJit, maybeJitCls
+from zProj.pytrees import (
+    Trajectory,
+    AffineDynamics,
+    QuadraticDynamics,
+    AffinePolicy,
+    QuadraticCostFunction,
+    QuadraticValueFunction,
+    CostFunction,
+    QuadraticDeltaCost
+)
 
 
-## iLQR and DDP
-class iLQR():
-    """Iterative LQR Solver"""
+def trajectoryRollout(
+    x0: jnp.ndarray,
+    dynFun: Callable[[jnp.ndarray, jnp.ndarray], jnp.ndarray],
+    policy: AffinePolicy,
+    trajPrev: Trajectory,
+    alpha: float = 1
+) -> Trajectory:
+    """
+    Rollout a trajectory from the initial state using the provided control policy
 
-    def __init__(
-        self,
-        dynFun: Callable[[int, np.ndarray, np.ndarray], np.ndarray],
-        costFun: Callable[[int, np.ndarray, np.ndarray], float],
-        x0: np.ndarray,
-        u: np.ndarray,
-        terminalCostFun: Callable[[np.ndarray], float] = None,
-        muMin: float = 1e-6,
-        delta0: float = 2,
-        maxIter: int = 100,
-        tol: float = 1e-6,
-        maxLineSearchIter: int = 16,
-        betaLineSearch: float = 0.5,
-        cLineSearch: float = 0.8,
-        jittable: bool = True
-    ):
-        """
-        Iterative LQR constructor
+    Arguments
+    ---------
+        x0 : Initial state
+        dynFun : Non-linear dynamics function of the form: `xOut = f(x,u)`
+        policy : Affine control policy
+        trajPrev : Previous trajectory
+        alpha : Step size
 
-        Arguments
-        ---------
-        dynFun : Callable[[int, np.ndarray, np.ndarray], np.ndarray]
-            Discrete dynamics function of the form `xOut = f(k,x,u)`
-        costFun : Callable[[int, np.ndarray, np.ndarray], float]
-            Discrete cost function of the form `j = c(k,x,u)`
-        x0 : np.ndarray
-            Initial state, array of shape (n,)
-        u : np.ndarray,
-            Initial guess for control trajectory, array of shape (N,m)
-        terminalCostFun : Callable[[np.ndarray], float], optional
-            Terminal cost function of the form: `j = cf(x)`
-            Default: cf(x) = c(N,x,0)
-        muMin : float
-            Minimum cost regularization term, larger mu biases each step towards the current trajectory
-            Default: 1e-6
-        delta0 : float
-            Minimal modification factor
-            Default: 2
-        maxIter : int, optional
-            Maximum number of optimization iterations
-            Default: 100
-        tol : float, optional
-            Convergence tolerance, will exit if norm(xPrev-x) <= tol
-            Default: 1e-3
-        maxLineSearchIter : int, optional
-            Maximum number of line search iterations in forward pass
-            Default: 16
-        betaLineSearch : float, optional
-            Scale factor per iteration of line search.
-            Must be between 0 and 1
-            Default: 0.5
-        cLineSearch : float, optional
-            Line search cost degredation threshold
-            Must be between 0 and 1
-            Default: 0.8
-        jittable : bool, optional
-            Specifies whether the dynamics and cost functions are compatible with jax.jit
-            Default: True
+    Returns
+    -------
+        Resulting trajectory
+    """
+    xPrev, uPrev = trajPrev
+    N = uPrev.shape[0]
 
-        Notes
-        -----
-        - Iterative lqr is very dependent on the initial guess.
-          If the algorithm is failing to converge, consider providing a different starting point.
-        - Implementation based on [TET12]
+    def trajectoryStep(x, k):
+        dx = x - xPrev[k]
+        u = policy(dx, k=k, alpha=alpha) + uPrev[k]
+        xOut = dynFun(x, u)
+        return xOut, (xOut, u)
 
-        References
-        ----------
-        - [TET12]: Yuval Tassa, Tom Erez, and Emanuel Todorov. Synthesis and stabilization of complex behaviors through
-          online trajectory optimization. In IEEE International Conference on Intelligent Robots and Systems (IROS),
-          2012.
-        """
-        self.x0 = x0
-        self.u = u
-        self.tol = tol
-        self.muMin = muMin
-        self.delta0 = delta0
-        self.maxIter = maxIter
-        self.maxLineSearchIter = maxLineSearchIter
-        self.betaLineSearch = betaLineSearch
-        self.cLineSearch = cLineSearch
-        self.jittable = jittable
-        self._computeDerivatives(
-            dynFun, costFun, terminalCostFun
-        )  # Also stores dynamics and cost functions as instance parameters
-
-    def _computeDerivatives(self, f, c, cf):
-        fx = jax.jacrev(f, 1)
-        fu = jax.jacrev(f, 2)
-        cx = jax.jacrev(c, 1)
-        cu = jax.jacrev(c, 2)
-        cxx = jax.jacfwd(cx, 1)
-        cux = jax.jacfwd(cu, 1)
-        cuu = jax.jacfwd(cu, 2)
-
-        if cf is None:
-            N, m = self.u.shape
-            cf = lambda x: c(N, x, np.zeros(m))
-            cfx = lambda x: cx(N, x, np.zeros(m))
-            cfxx = lambda x: cxx(N, x, np.zeros(m))
-        else:
-            cfx = jax.jacrev(cf, 0)
-            cfxx = jax.jacfwd(cfx, 0)
-
-        self.f = maybeJit(f, self.jittable)
-        self.c = maybeJit(c, self.jittable)
-        self.fx = maybeJit(fx, self.jittable)
-        self.fu = maybeJit(fu, self.jittable)
-        self.cx = maybeJit(cx, self.jittable)
-        self.cu = maybeJit(cu, self.jittable)
-        self.cxx = maybeJit(cxx, self.jittable)
-        self.cux = maybeJit(cux, self.jittable)
-        self.cuu = maybeJit(cuu, self.jittable)
-        self.cf = maybeJit(cf, self.jittable)
-        self.cfx = maybeJit(cfx, self.jittable)
-        self.cfxx = maybeJit(cfxx, self.jittable)
-
-    @maybeJitCls
-    def _computeQ(self, k, x, u, V, vVec, mu):
-        n = len(x)
-        fxk = self.fx(k, x, u)
-        fuk = self.fu(k, x, u)
-        Vw = V + mu * jnp.eye(n)
-
-        Qx = self.cx(k, x, u) + fxk.T @ vVec
-        Qu = self.cu(k, x, u) + fuk.T @ vVec
-        Qxx = self.cxx(k, x, u) + fxk.T @ V @ fxk
-        Quu = self.cuu(k, x, u) + fuk.T @ Vw @ fuk
-        Qux = self.cux(k, x, u) + fuk.T @ Vw @ fxk
-        return Qx, Qu, Qxx, Quu, Qux
-
-    @maybeJitCls
-    def _backwardPassUpdate(self, Qx, Qu, Qxx, Quu, Qux):
-        l = -jnp.linalg.solve(Quu, Qu)
-        L = -jnp.linalg.solve(Quu, Qux)
-
-        dv_lin = l.T @ Qu
-        dv_quad = 0.5 * l.T @ Quu @ l
-
-        vVec = Qx + L.T @ Qu + Qux.T @ l + L.T @ Quu @ l
-        V = Qxx + L.T @ Qux + Qux.T @ L + L.T @ Quu @ L
-        return l, L, dv_lin, dv_quad, vVec, V
-
-    def solve(self) -> tuple[np.ndarray, np.ndarray, Callable[[int, np.ndarray], np.ndarray]]:
-        """
-        Solve the iLQR problem
-
-        Returns
-        -------
-        xTraj : np.ndarray
-            Optimal state trajectory of shape (N+1,n)
-        uTraj : np.ndarray
-            Optimal control trajectory of shape (N,m)
-        LArr : np.ndarray
-            Optimal control gains of the form u = LArr[k] @ (x - xTraj[k])
-        """
-
-        # Get various dimensions
-        n = len(self.x0)
-        N, m = self.u.shape
-
-        # Initialize stuff
-        xPrev = np.inf * np.ones((N + 1, n))
-        u = self.u
-        LArr = np.zeros((N, m, n))
-        lArr = np.zeros((N, m))
-        converged = False
-        mu = self.muMin
-        delta = self.delta0
-
-        J = np.inf
-        dJ_lin = -1
-        dJ_quad = 0
-
-        # Main iLQR loop
-        for iter in range(self.maxIter):
-            init = (iter == 0)
-            x, u, J = self._forwardPass(u, xPrev, LArr, lArr, init, J, dJ_lin, dJ_quad)
-
-            # Check convergence Criteria
-            delta_x = np.linalg.norm(x - xPrev)
-            if delta_x <= self.tol:
-                converged = True
-                break
-
-            LArr, lArr, mu, delta, dJ_lin, dJ_quad = self._backwardPass(x, u, mu, delta)
-            xPrev = x.copy()
-
-        if not converged:
-            warnings.warn(
-                "ILQR reached max iterations and did not converge. Most recent delta = {:.3g}".format(delta_x)
-            )
-
-        return x, u, LArr
-
-    def _forwardPass(self, uPrev, xPrev, LArr, lArr, init, J_prev, dJ_lin, dJ_quad):
-        N, m = uPrev.shape
-        n = len(self.x0)
-        x = np.zeros((N + 1, n))
-        x[0] = self.x0
-
-        alpha = 1
-        converged = False
-        for lineSearchIter in range(self.maxLineSearchIter):
-            u = uPrev.copy()
-            dJ_exp = alpha * dJ_lin + alpha**2 * dJ_quad
-            J = 0
-            for k in range(N):
-                dx = x[k] - xPrev[k]
-                if init:
-                    du = np.zeros(m)
-                else:
-                    du = alpha * lArr[k] + LArr[k] @ dx
-                u[k] = u[k] + du
-                J += self.c(k, x[k], u[k])
-                x[k + 1] = self.f(k, x[k], u[k])
-            J += self.cf(x[-1])
-
-            if (J - J_prev) / dJ_exp > self.cLineSearch:
-                converged = True
-                break
-
-            alpha = alpha * self.betaLineSearch
-
-        if not converged:
-            raise RuntimeError("lineSearch failed to converge!!!")
-
-        return x, u, J
-
-    def _backwardPass(self, x, u, mu, delta):
-        N, m = u.shape
-        n = x.shape[1]
-
-        cfx = self.cfx(x[N])
-        cfxx = self.cfxx(x[N])
-
-        lArr = np.zeros((N, m))
-        LArr = np.zeros((N, m, n))
-
-        maxRegularizationIter = 100
-        for regIter in range(maxRegularizationIter):
-            vVec = cfx
-            V = cfxx
-            dJ_lin = 0
-            dJ_quad = 0
-            converged = True
-            for k in range(N - 1, -1, -1):
-                Qx, Qu, Qxx, Quu, Qux = self._computeQ(k, x[k], u[k], V, vVec, mu)
-
-                if not (jnp.all(jnp.linalg.eigvals(Quu) > 0)):
-                    delta = max(self.delta0, delta * self.delta0)
-                    mu = max(self.muMin, mu * delta)
-                    converged = False
-                    break
-
-                l, L, dv_lin, dv_quad, vVec, V = self._backwardPassUpdate(Qx, Qu, Qxx, Quu, Qux)
-
-                lArr[k] = l
-                LArr[k] = L
-
-                dJ_lin += dv_lin
-                dJ_quad += dv_quad
-
-            if converged:
-                delta = min(1 / self.delta0, delta / self.delta0)
-                mu1 = mu * delta
-                mu = mu1 if mu1 > self.muMin else 0
-                break
-
-        return LArr, lArr, mu, delta, dJ_lin, dJ_quad
+    _, (xTraj, uTraj) = jax.lax.scan(trajectoryStep, x0, jnp.arange(N))
+    xTraj = jnp.concatenate([x0[None, :], xTraj])
+    return Trajectory(xTraj, uTraj)
 
 
-class DDP(iLQR):
+def forwardPass(
+    x0: jnp.ndarray,
+    dynFun: Callable[[jnp.ndarray, jnp.ndarray], jnp.ndarray],
+    costFun: CostFunction,
+    policy: AffinePolicy,
+    trajPrev: Trajectory,
+    dJFun: QuadraticDeltaCost,
+    JPrev: float,
+    cLineSearch: float = 0.5,
+    alphaMin: float = 0.5**16
+) -> tuple[Trajectory, float]:
+    """
+    ILQR forward pass using the expected quadratic cost change to determine the step size
 
-    def __init__(
-        self,
-        dynFun: Callable[[int, np.ndarray, np.ndarray], np.ndarray],
-        costFun: Callable[[int, np.ndarray, np.ndarray], float],
-        x0: np.ndarray,
-        u: np.ndarray,
-        terminalCostFun: Callable[[np.ndarray], float] = None,
-        muMin: float = 1e-6,
-        delta0: float = 2,
-        maxIter: int = 100,
-        tol: float = 1e-6,
-        maxLineSearchIter: int = 16,
-        betaLineSearch: float = 0.5,
-        cLineSearch: float = 0.8,
-        jittable: bool = True
-    ):
-        """
-        Differential dynamic programming constructor
+    Arguments
+    ---------
+        x0 : Initial state
+        dynFun : Non-linear dynamics function of the form: `xOut = f(x,u)`
+        costFun : Cost function for step-size line search
+        policy : Affine control policy
+        trajPrev : Previous trajectorys
+        dJFun : Quadratic cost change function: `dJ_exp = djFun(alpha)`
+        JPrev : Previous cost
+        cLineSearch : Termination criteria for line search: `(J-J_prev) > cLineSearch * dJ_exp`
+            Must be between [0,1]
+        alphaMin : Minimum step size for line search
 
-        Arguments
-        ---------
-        dynFun : Callable[[int, np.ndarray, np.ndarray], np.ndarray]
-            Discrete dynamics function of the form `xOut = f(k,x,u)`
-        costFun : Callable[[int, np.ndarray, np.ndarray], float]
-            Discrete cost function of the form `j = c(k,x,u)`
-        x0 : np.ndarray
-            Initial state, array of shape (n,)
-        u : np.ndarray,
-            Initial guess for control trajectory, array of shape (N,m)
-        terminalCostFun : Callable[[np.ndarray], float], optional
-            Terminal cost function of the form: `j = cf(x)`
-            Default: cf(x) = c(N,x,0)
-        muMin : float
-            Minimum cost regularization term, larger mu biases each step towards the current trajectory
-            Default: 1e-6
-        delta0 : float
-            Minimal modification factor
-            Default: 2
-        maxIter : int, optional
-            Maximum number of optimization iterations
-            Default: 100
-        tol : float, optional
-            Convergence tolerance, will exit if norm(xPrev-x) <= tol
-            Default: 1e-3
-        maxLineSearchIter : int, optional
-            Maximum number of line search iterations in forward pass
-            Default: 16
-        betaLineSearch : float, optional
-            Scale factor per iteration of line search.
-            Must be between 0 and 1
-            Default: 0.5
-        cLineSearch : float, optional
-            Line search cost degredation threshold
-            Must be between 0 and 1
-            Default: 0.8
-        jittable : bool, optional
-            Specifies whether the dynamics and cost functions are compatible with jax.jit
-            Default: True
+    Returns
+    -------
+        New trajectory and cost
+    """
 
-        Notes
-        -----
-        - Different dynamic programming is very dependent on the initial guess.
-          If the algorithm is failing to converge, consider providing a different starting point.
-        - Implementation based on [TET12]
+    def forwardPassStep(loopVars):
+        J, traj, alpha = loopVars
+        trajNew = trajectoryRollout(x0, dynFun, policy, trajPrev, alpha=alpha)
+        JNew = costFun(trajNew)
+        alpha = alpha * 0.5
+        return (JNew, trajNew, alpha)
 
-        References
-        ----------
-        - [TET12]: Yuval Tassa, Tom Erez, and Emanuel Todorov. Synthesis and stabilization of complex behaviors through
-          online trajectory optimization. In IEEE International Conference on Intelligent Robots and Systems (IROS),
-          2012.
-        """
-        super().__init__(
-            dynFun,
-            costFun,
-            x0,
-            u,
-            terminalCostFun=terminalCostFun,
-            muMin=muMin,
-            delta0=delta0,
-            maxIter=maxIter,
-            tol=tol,
-            maxLineSearchIter=maxLineSearchIter,
-            betaLineSearch=betaLineSearch,
-            cLineSearch=cLineSearch,
-            jittable=jittable
-        )
+    def whileCond(loopVars):
+        J, traj, alpha = loopVars
+        return ((J - JPrev) / dJFun(alpha) <= cLineSearch) | (alpha <= alphaMin)
 
-        # Compute additional derivatives
-        fxx = jax.jacfwd(self.fx, 1)
-        fux = jax.jacfwd(self.fu, 1)
-        fuu = jax.jacfwd(self.fu, 2)
+    J, traj, alpha = jax.lax.while_loop(whileCond, forwardPassStep, (JPrev, trajPrev, 1.))
+    return traj, J
 
-        self.fxx = maybeJit(fxx, self.jittable)
-        self.fux = maybeJit(fux, self.jittable)
-        self.fuu = maybeJit(fuu, self.jittable)
 
-    @maybeJitCls
-    def _computeQ(self, k, x, u, V, vVec, mu):
-        """Note: we diverge from the TET paper here. The modified regularization doesn't seem to work well with DDP"""
-        m = len(u)
-        fxk = self.fx(k, x, u)
-        fuk = self.fu(k, x, u)
+def forwardPass2(
+    x0: jnp.ndarray,
+    dynFun: Callable[[jnp.ndarray, jnp.ndarray], jnp.ndarray],
+    costFun: CostFunction,
+    policy: AffinePolicy,
+    trajPrev: Trajectory
+) -> tuple[Trajectory, float]:
+    """
+    Simplified ILQR forward pass.
+    Rollout trajectories for a fixed set of step sizes and select the one with minimum cost.
 
-        Qx = self.cx(k, x, u) + fxk.T @ vVec
-        Qu = self.cu(k, x, u) + fuk.T @ vVec
-        Qxx = self.cxx(k, x, u) + fxk.T @ V @ fxk + jnp.einsum('i,ijk', vVec, self.fxx(k, x, u))
-        Quu = self.cuu(k, x, u) + fuk.T @ V @ fuk + jnp.einsum('i,ijk', vVec, self.fuu(k, x, u))
-        Qux = self.cux(k, x, u) + fuk.T @ V @ fxk + jnp.einsum('i,ijk', vVec, self.fux(k, x, u))
-        Quu = Quu + mu * jnp.eye(m)
-        return Qx, Qu, Qxx, Quu, Qux
+    Arguments
+    ---------
+        x0 : Initial state
+        dynFun : Non-linear dynamics function of the form: `xOut = f(x,u)`
+        costFun : Cost function for step-size line search
+        policy : Affine control policy
+        trajPrev : Previous trajectorys
+
+    Returns
+    -------
+        New trajectory and cost
+    """
+
+    def forwardPassInner(alpha):
+        trajNew = trajectoryRollout(x0, dynFun, policy, trajPrev, alpha=alpha)
+        JNew = costFun(trajNew)
+        return (JNew, trajNew)
+
+    alphaArr = 0.5**jnp.arange(16)
+    (JArr, trajArr) = jax.vmap(forwardPassInner)(alphaArr)
+    idx = jnp.argmin(JArr)
+    traj = trajArr[idx]
+    J = JArr[idx]
+    return traj, J
+
+
+def riccatiStep_ilqr(dynamics: AffineDynamics, cost: QuadraticCostFunction,
+                     value: QuadraticValueFunction) -> tuple[QuadraticValueFunction, AffinePolicy]:
+    """Perform one step of the backwards Ricatti recursion"""
+    _, f_x, f_u = dynamics
+    c, c_x, c_u, c_xx, c_ux, c_uu = cost
+    v, v_x, v_xx = value
+
+    Q = c + v
+    Q_x = c_x + f_x.T @ v_x
+    Q_u = c_u + f_u.T @ v_x
+    Q_xx = c_xx + f_x.T @ v_xx @ f_x
+    Q_uu = c_uu + f_u.T @ v_xx @ f_u
+    Q_ux = c_ux + f_u.T @ v_xx @ f_x
+
+    l = -jnp.linalg.solve(Q_uu, Q_u)
+    L = -jnp.linalg.solve(Q_uu, Q_ux)
+
+    valueOut = QuadraticValueFunction(Q - 0.5 * l.T @ Q_uu @ l, Q_x - L.T @ Q_uu @ l, Q_xx - L.T @ Q_uu @ L)
+
+    policy = AffinePolicy(l, L)
+    return valueOut, policy
+
+
+def backwardPass_ilqr(dynamics: AffineDynamics, cost: QuadraticCostFunction, Vf: QuadraticValueFunction):
+    """Backwards pass of the ILQR algorithm"""
+    N = len(cost.c)
+    scan_fun = lambda V, k: riccatiStep_ilqr(dynamics[k], cost[k], V)
+    _, policy = jax.lax.scan(scan_fun, Vf, xs=jnp.arange(N), reverse=True)
+    return policy
+
+
+def riccatiStep_ddp(dynamics: QuadraticDynamics, cost: QuadraticCostFunction,
+                    value: QuadraticValueFunction) -> tuple[QuadraticValueFunction, AffinePolicy]:
+    """Perform one step of the backwards Ricatti recursion"""
+    c, c_x, c_u, c_xx, c_ux, c_uu = cost
+    v, v_x, v_xx = value
+
+    _, f_x, f_u, _, _, _ = dynamics
+    vf_xx, vf_ux, vf_uu = conditionQuadraticDynamics(dynamics, v_x)
+
+    Q = c + v
+    Q_x = c_x + f_x.T @ v_x
+    Q_u = c_u + f_u.T @ v_x
+    Q_xx = c_xx + f_x.T @ v_xx @ f_x + vf_xx
+    Q_uu = c_uu + f_u.T @ v_xx @ f_u + vf_uu
+    Q_ux = c_ux + f_u.T @ v_xx @ f_x + vf_ux
+
+    l = -jnp.linalg.solve(Q_uu, Q_u)
+    L = -jnp.linalg.solve(Q_uu, Q_ux)
+
+    valueOut = QuadraticValueFunction(Q - 0.5 * l.T @ Q_uu @ l, Q_x - L.T @ Q_uu @ l, Q_xx - L.T @ Q_uu @ L)
+
+    policy = AffinePolicy(l, L)
+    return valueOut, policy
+
+
+def backwardPass_ddp(dynamics: QuadraticDynamics, cost: QuadraticCostFunction, Vf: QuadraticValueFunction):
+    """Backwards pass of the ILQR algorithm"""
+    N = len(cost.c)
+    scan_fun = lambda V, k: riccatiStep_ddp(dynamics[k], cost[k], V)
+    _, policy = jax.lax.scan(scan_fun, Vf, xs=jnp.arange(N), reverse=True)
+    return policy
+
+
+def ensurePositiveDefinite(a, eps=1e-3):
+    w, v = jnp.linalg.eigh(a)
+    return (v * jnp.maximum(w, eps)) @ v.T
+
+
+def conditionQuadraticCost(quadratic_cost: QuadraticCostFunction):
+    """Ensure quadratic cost is strictly positive definite"""
+
+    (c, c_x, c_u, c_xx, c_ux, c_uu) = quadratic_cost
+
+    n = c_xx.shape[1]
+    m = c_uu.shape[1]
+
+    c_zz = jnp.block([[c_xx, c_ux.transpose(0, 2, 1)], [c_ux, c_uu]])
+    c_zz = jax.vmap(ensurePositiveDefinite)(c_zz)
+    c_xx, c_uu, c_ux = c_zz[:, :n, :n], c_zz[:, -m:, -m:], c_zz[:, -m:, :n]
+
+    return QuadraticCostFunction(c, c_x, c_u, c_xx, c_ux, c_uu)
+
+
+def conditionQuadraticDynamics(quadratic_dynamics: QuadraticDynamics, v_x: jnp.ndarray):
+    """Ensure the quadratic terms of the DDP riccati step are positive definite"""
+    _, _, _, f_xx, f_ux, f_uu = quadratic_dynamics
+    vf_xx = jnp.einsum('i,ijk', v_x, f_xx)
+    vf_uu = jnp.einsum('i,ijk', v_x, f_uu)
+    vf_ux = jnp.einsum('i,ijk', v_x, f_ux)
+
+    n = vf_xx.shape[0]
+    m = vf_uu.shape[0]
+
+    vf_zz = jnp.block([[vf_xx, vf_ux.T], [vf_ux, vf_uu]])
+    vf_zz = ensurePositiveDefinite(vf_zz)
+    vf_xx, vf_uu, vf_ux = vf_zz[:n, :n], vf_zz[-m:, -m:], vf_zz[-m:, :n]
+
+    return vf_xx, vf_ux, vf_uu
+
+
+def conditionValueFunction(Vf: QuadraticValueFunction):
+    v, v_x, v_xx = Vf
+    v_xx = ensurePositiveDefinite(Vf.v_xx)
+    return QuadraticValueFunction(v, v_x, v_xx)
+
+
+@partial(jax.jit, static_argnames=["dynamics", "runningCost", "terminalCost"])
+def iterativeLqr(
+    dynamics: Callable[[jnp.array, jnp.array], jnp.array],
+    runningCost: Callable[[jnp.array, jnp.array], float],
+    terminalCost: Callable[[jnp.array], float],
+    x0: jnp.array,
+    uGuess: jnp.array,
+    maxIter=100,
+    tol=1e-3
+) -> tuple[Trajectory, jnp.ndarray, float, bool]:
+    """
+    Iterative LQR algorithm
+
+    Arguments
+    ---------
+        dynamics : Discrete dynamics function: `xOut = f(x,u)`
+        runningCost : Running cost function: `j = c(x,u)`
+        terminalCost : Terminal cost function `j = cf(xf)`
+        x0 : Initial state
+        uGuess : Initial guess for control trajectory
+        maxIter : Maximum number of ilqr iterations
+        tol : Convergence tolerance: `abs(J_prev - J) <= tol`
+
+    Returns
+    -------
+    traj : Output trajectory
+    L : LQR feedback gains: `u[k] = L[k] @ (x[k]-xTraj[k]) + uTraj[k]`
+    J : Corresponding cost
+    converged : Whether ilqr converged
+    """
+    n = x0.shape[0]
+    N, m = uGuess.shape
+    cost = CostFunction(runningCost, terminalCost)
+    policy = AffinePolicy(uGuess, jnp.zeros((N, m, n)))
+    traj_prev = Trajectory(jnp.zeros((N + 1, n)), jnp.zeros((N, m)))
+
+    # Rollout initial trajectory
+    traj = trajectoryRollout(x0, dynamics, policy, traj_prev)
+    J = cost(traj)
+
+    # ILQR loop
+    def ilqrCond(loopVars):
+        traj, policy, J, converged, iter = loopVars
+        return jnp.logical_not(converged) & (iter < maxIter)
+
+    def ilqrStep(loopVars):
+        traj, policy, J, converged, iter = loopVars
+
+        affine_dynamics = AffineDynamics.from_trajectory(dynamics, traj)
+        quadratic_cost = QuadraticCostFunction.from_trajectory(cost, traj)
+        Vf = QuadraticValueFunction.fromTerminalCostFunction(cost, traj.xTraj[-1])
+
+        quadratic_cost = conditionQuadraticCost(quadratic_cost)
+        Vf = conditionValueFunction(Vf)
+
+        policy = backwardPass_ilqr(affine_dynamics, quadratic_cost, Vf)
+        traj_new, J_new = forwardPass2(x0, dynamics, cost, policy, traj)
+
+        converged = abs(J - J_new) <= tol
+        traj = traj_new
+        J = J_new
+        iter += 1
+        return (traj, policy, J, converged, iter)
+
+    out = jax.lax.while_loop(ilqrCond, ilqrStep, (traj, policy, J, False, 0))
+    traj, policy, J, converged, iter = out
+
+    return traj, policy.L, J, converged
+
+
+@partial(jax.jit, static_argnames=["dynamics", "runningCost", "terminalCost"])
+def differentialDynamicProgramming(
+    dynamics: Callable[[jnp.array, jnp.array], jnp.array],
+    runningCost: Callable[[jnp.array, jnp.array], float],
+    terminalCost: Callable[[jnp.array], float],
+    x0: jnp.array,
+    uGuess: jnp.array,
+    maxIter=100,
+    tol=1e-3
+) -> tuple[Trajectory, jnp.ndarray, float, bool]:
+    """
+    Differential dynamic programming algorithm
+
+    Arguments
+    ---------
+        dynamics : Discrete dynamics function: `xOut = f(x,u)`
+        runningCost : Running cost function: `j = c(x,u)`
+        terminalCost : Terminal cost function `j = cf(xf)`
+        x0 : Initial state
+        uGuess : Initial guess for control trajectory
+        maxIter : Maximum number of ilqr iterations
+        tol : Convergence tolerance: `abs(J_prev - J) <= tol`
+
+    Returns
+    -------
+    traj : Output trajectory
+    L : LQR feedback gains: `u[k] = L[k] @ (x[k]-xTraj[k]) + uTraj[k]`
+    J : Cost
+    converged : Whether ddp converged
+    """
+    n = x0.shape[0]
+    N, m = uGuess.shape
+    cost = CostFunction(runningCost, terminalCost)
+    policy = AffinePolicy(uGuess, jnp.zeros((N, m, n)))
+    traj_prev = Trajectory(jnp.zeros((N + 1, n)), jnp.zeros((N, m)))
+
+    # Rollout initial trajectory
+    traj = trajectoryRollout(x0, dynamics, policy, traj_prev)
+    J = cost(traj)
+
+    # DDP loop
+    def ddpCond(loopVars):
+        traj, policy, J, converged, iter = loopVars
+        return jnp.logical_not(converged) & (iter < maxIter)
+
+    def ddpStep(loopVars):
+        traj, policy, J, converged, iter = loopVars
+
+        quadratic_dynamics = QuadraticDynamics.from_trajectory(dynamics, traj)
+        quadratic_cost = QuadraticCostFunction.from_trajectory(cost, traj)
+        Vf = QuadraticValueFunction.fromTerminalCostFunction(cost, traj.xTraj[-1])
+
+        quadratic_cost = conditionQuadraticCost(quadratic_cost)
+        Vf = conditionValueFunction(Vf)
+
+        policy = backwardPass_ddp(quadratic_dynamics, quadratic_cost, Vf)
+        traj_new, J_new = forwardPass2(x0, dynamics, cost, policy, traj)
+
+        converged = abs(J - J_new) <= tol
+        traj = traj_new
+        J = J_new
+        iter += 1
+        return (traj, policy, J, converged, iter)
+
+    out = jax.lax.while_loop(ddpCond, ddpStep, (traj, policy, J, False, 0))
+    traj, policy, J, converged, iter = out
+
+    return traj, policy.L, J, converged

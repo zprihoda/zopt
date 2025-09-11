@@ -1,3 +1,4 @@
+import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -9,12 +10,13 @@ from zProj.lqrUtils import discreteFiniteHorizonLqr, proportionalFeedbackControl
 
 def main():
     # User inputs
-    uvwTrim = np.zeros(3)
-    Q = np.eye(8)
-    R = np.eye(4)
-    Qf = 10 * np.eye(8)
+    uvwTrim = jnp.zeros(3)
+    Q = jnp.eye(8)
+    R = jnp.eye(4)
+    Qf = 10 * jnp.eye(8)
     x0 = np.zeros(12)
     x0[0:3] = 1
+    x0 = jnp.array(x0)
     T = 10
     dt = 0.1
 
@@ -25,11 +27,11 @@ def main():
 
     # Design LQR controller
     N = int(T / dt)
-    Ak = np.repeat(A[None, :, :], N, axis=0)
-    Bk = np.repeat(B[None, :, :], N, axis=0)
-    Qk = np.repeat(Q[None, :, :], N - 1, axis=0)
-    Qk = np.concatenate([Qf[None, :, :], Qk], axis=0)
-    Rk = np.repeat(R[None, :, :], N, axis=0)
+    Ak = jnp.repeat(A[None, :, :], N, axis=0)
+    Bk = jnp.repeat(B[None, :, :], N, axis=0)
+    Qk = jnp.repeat(Q[None, :, :], N - 1, axis=0)
+    Qk = jnp.concatenate([Qf[None, :, :], Qk], axis=0)
+    Rk = jnp.repeat(R[None, :, :], N, axis=0)
     K = discreteFiniteHorizonLqr(Ak, Bk, Qk, Rk, N)
     xCtrl0 = np.array([])
 

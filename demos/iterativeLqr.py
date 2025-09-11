@@ -2,14 +2,14 @@ import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import numpy as np
 
-from zProj.ilqrUtils import iLQR
+from zProj.ilqrUtils import iterativeLqr
 from zProj.plottingTools import plotTimeTrajectory
 from zProj.quadcopter import Quadcopter
 from zProj.quadcopterAnimation import QuadcopterAnimation
 from zProj.simulator import Simulator, SimBlock
 
 
-def cost(k, x, u, Q, R):
+def cost(x, u, Q, R):
     return x.T @ Q @ x + u.T @ R @ u
 
 
@@ -32,14 +32,13 @@ def main():
     _, uTrim = ac.trim(np.zeros(3))
 
     # Setup and solve iLQR problem
-    dynFun = lambda k, x, u: x + dt * ac.inertialDynamics(x, u)
-    costFun = lambda k, x, u: cost(k, x, u, Q, R)
+    dynFun = lambda x, u: x + dt * ac.inertialDynamics(x, u)
+    costFun = lambda x, u: cost(x, u, Q, R)
     terminalCostFun = lambda x: 10 * x @ Q @ x
     uGuess = np.repeat(uTrim[None, :], N, axis=0)
-    prob = iLQR(dynFun, costFun, x0, uGuess, terminalCostFun=terminalCostFun, tol=1e-3)
-    xTraj, uTraj, LArr = prob.solve()
-    xTraj = jnp.asarray(xTraj)
-    uTraj = jnp.asarray(uTraj)
+    traj, LArr, J, converged = iterativeLqr(dynFun, costFun, terminalCostFun, x0, uGuess)
+    xTraj = jnp.asarray(traj.xTraj)
+    uTraj = jnp.asarray(traj.uTraj)
     LArr = jnp.asarray(LArr)
 
     # Simple Simulation

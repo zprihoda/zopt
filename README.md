@@ -2,18 +2,26 @@
 A random collection of small projects
 
 ## TODO:
+### ilqr-jax
+- Documentation
+    - Add documentation to pytrees
+    - Add references (Stanford and Paper)
+
 ### All
-- Tasks:
-    - Indirect methods (port / cleanup Kirk algorithms)
-    - Direct Methods
-    - MPC
-- Short Tasks:
-    - Create controllers module?
-        - Move proportionalFeedbackController from lqrUtils to controllers
-        - Add integral controller from integralLqrControl demo.
-        - Create/move tests
-- iLQR/DDP:
-    - Look into using jax.lax.cond to jit functions with conditionals
+- MPC
+    - Implement a generalized MPC architecture
+    - Demos:
+        - Convex optimization: linear dynamics with constraint
+        - iLQR MPC
+- Indirect methods (port / cleanup Kirk algorithms)
+    - Implement fully jax compliant versions of each method?
+- Direct Methods
+    - Same as indirect methods?
+- Create controllers module?
+    - Include a few common controller architectures
+    - Move proportionalFeedbackController from lqrUtils to controllers
+    - Add integral controller from integralLqrControl demo.
+    - Create/move tests
 - Simulator:
     - Add support for multi-rate systems
     - Generalize simBlocks + add signal map

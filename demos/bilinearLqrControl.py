@@ -1,3 +1,4 @@
+import jax.numpy as jnp
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -19,7 +20,7 @@ def main():
     # User inputs
     dt = 0.1
     N = 100
-    x0Dyn = np.array([0, 0, 0, 0.5, 0.5, 0.1, 0, 0, 0, 0, 0, 0])
+    x0Dyn = jnp.array([0., 0, 0, 0.5, 0.5, 0.1, 0, 0, 0, 0, 0, 0])
 
     # Get Linear dynamics
     ac = Quadcopter()
@@ -28,15 +29,15 @@ def main():
     n, m = B.shape
 
     # Generate random problem
-    A = np.repeat(A[None, :, :], N, axis=0)
-    B = np.repeat(B[None, :, :], N, axis=0)
-    d = np.zeros((N, n))
-    Q = np.repeat(np.eye(n)[None, :, :], N, axis=0)
-    R = np.repeat(np.eye(m)[None, :, :], N, axis=0)
-    H = 0.2 * rng.normal(size=(N, m, n))  # random cross penalty on state-control
-    qVec = 0.1 * np.repeat(np.array([1, -1, 0, 0, 0, 0, 0, 0])[None, :], N, axis=0)
-    rVec = np.zeros((N, m))
-    q = np.zeros(N)
+    A = jnp.repeat(A[None, :, :], N, axis=0)
+    B = jnp.repeat(B[None, :, :], N, axis=0)
+    d = jnp.zeros((N, n))
+    Q = jnp.repeat(np.eye(n)[None, :, :], N, axis=0)
+    R = jnp.repeat(np.eye(m)[None, :, :], N, axis=0)
+    H = jnp.array(0.2 * rng.normal(size=(N, m, n)))  # random cross penalty on state-control
+    qVec = 0.1 * jnp.repeat(np.array([1, -1, 0, 0, 0, 0, 0, 0])[None, :], N, axis=0)
+    rVec = jnp.zeros((N, m))
+    q = jnp.zeros(N)
 
     # Solve for finite horizon LQR
     L, l = bilinearAffineLqr(A, B, d, Q, R, H, qVec, rVec, q, N)
