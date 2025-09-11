@@ -4,8 +4,6 @@ import pytest
 import zProj.ilqrUtils as ilqr
 import zProj.pytrees as pytrees
 
-jax.config.update("jax_enable_x64", True)  # TEMP: Remove once iLQR line search improved
-
 
 def test_trajectoryRollout():
     N = 3

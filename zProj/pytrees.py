@@ -24,10 +24,28 @@ class CostFunction(NamedTuple):
 
     @classmethod
     def runningOnly(cls, runningCost: Callable[[jnp.ndarray, jnp.ndarray], float], m: int = 1):
+        """
+        Construct a cost function with the same terminal and running cost functions
+        `terminalCost(xf) = runningCost(xf,0)`
+
+        Arguments
+        ---------
+            runningCost : Running cost function: `j = runningCost(x,u)`
+            m : Dimension of u, used to size the 0 vector for the terminal cost.
+                Defaults to 1, which may work with many cost functions via array broadcasting
+        """
         terminalCost = lambda x: runningCost(x, jnp.zeros(m))
         return cls(runningCost, terminalCost)
 
     def __call__(self, traj: Trajectory, k=None):
+        """
+        Evaluate cost function for  a given trajectory
+
+        Arguments
+        ---------
+            traj : Trajectory to evaluate. Dimensions must be: `xTraj = (N+1,n), uTraj = (N,m)`
+            k : Optional index. If provided, only evaluate the running cost at index k of the trajectory
+        """
         runningCost, terminalCost = self
         xTraj, uTraj = traj
         if k is None:
@@ -38,7 +56,10 @@ class CostFunction(NamedTuple):
 
 
 class QuadraticValueFunction(NamedTuple):
-    """Value function of the form: `V(x) = v + v_x.T @ x + 0.5 * (x.T @ v_xx @ x)`"""
+    """
+    Quadratic value function tuple: (v, v_x, v_xx)
+    Representing a 2nd order Taylor series expansion: `V(x) = v + v_x.T @ x + 0.5 * (x.T @ v_xx @ x)`
+    """
     v: jnp.ndarray
     v_x: jnp.ndarray
     v_xx: jnp.ndarray
@@ -48,17 +69,22 @@ class QuadraticValueFunction(NamedTuple):
         return v + v_x.T @ x + 0.5 * x.T @ v_xx @ x
 
     @classmethod
-    def fromTerminalCostFunction(cls, costFun: CostFunction, x0: jnp.array):
+    def fromTerminalCostFunction(cls, costFun: CostFunction, xf: jnp.array):
+        """
+        Construct a quadratic value function from a terminal cost function and final state
+        Can be used to initialize for Riccati recursion
+        """
         cf = costFun.terminalCost
-        v = cf(x0)
-        v_x = jax.grad(cf)(x0)
-        v_xx = jax.hessian(cf)(x0)
+        v = cf(xf)
+        v_x = jax.grad(cf)(xf)
+        v_xx = jax.hessian(cf)(xf)
         return cls(v, v_x, v_xx)
 
 
 class QuadraticCostFunction(NamedTuple):
     """
-    Quadratic cost function of the form:
+    Quadratic cost tuple: (c, c_x, c_u, c_xx, c_ux, c_uu)
+    Representing a 2nd order Taylor series expansion:
     ```
     C(x,u) = c + c_x.T @ x + c_u.T @ u + 0.5 * (x.T @ c_xx @ x + 2*u.T @ c_ux @ x + u.T @ c_uu @ u)
     ```
@@ -72,7 +98,7 @@ class QuadraticCostFunction(NamedTuple):
 
     @classmethod
     def from_function(cls, costFun: CostFunction, x0: jnp.ndarray, u0: jnp.ndarray):
-        """Second order Taylor series expansion of cost function `c(x,u)` about (x0,u0)"""
+        """Initialize from a non-linear cost function `c(x,u)` about (x0,u0)"""
         runningCost = costFun.runningCost
         c = runningCost(x0, u0)
         c_x, c_u = jax.jacobian(runningCost, argnums=(0, 1))(x0, u0)
@@ -81,11 +107,15 @@ class QuadraticCostFunction(NamedTuple):
 
     @classmethod
     def from_trajectory(cls, costFun: CostFunction, traj: Trajectory):
-        """Second order Taylor series expansion of cost function `c(x,u)` about (xTraj,uTraj)"""
+        """
+        Initialize from a non-linear cost function `c(x,u)` about trajectory `(xTraj,uTraj)`
+        Trajectory shapes must be: `xTraj = (N+1,n), uTraj = (N,m)`
+        """
         xTraj, uTraj = traj
         return jax.vmap(lambda x0, u0: cls.from_function(costFun, x0, u0))(xTraj[:-1], uTraj)
 
     def __call__(self, x: jnp.ndarray, u: jnp.ndarray, k: int = None):
+        """Evaluate cost function at (x,u)"""
         c, c_x, c_u, c_xx, c_ux, c_uu = self
         if k is None and c.ndim != 0:
             raise ValueError("Must specify index for multi-dimensional cost")
@@ -97,7 +127,10 @@ class QuadraticCostFunction(NamedTuple):
 
 
 class AffineDynamics(NamedTuple):
-    """Affine dynamics of the form: `xOut = f + f_x @ x + f_u @ u`"""
+    """
+    Discrete affine dynamics tuple: (f, f_x, f_u)
+    1st order taylor series expansion: `xOut = f + f_x @ x + f_u @ u`
+    """
     f: jnp.ndarray
     f_x: jnp.ndarray
     f_u: jnp.ndarray
@@ -112,7 +145,10 @@ class AffineDynamics(NamedTuple):
 
     @classmethod
     def from_trajectory(cls, dynFun: Callable[[jnp.ndarray, jnp.ndarray], jnp.ndarray], traj: Trajectory):
-        """Second order Taylor series expansion of cost function `c(x,u)` about (xTraj,uTraj)"""
+        """
+        Second order Taylor series expansion of cost function `c(x,u)` about (xTraj,uTraj)
+        Dimensions must be: `xTraj = (N+1,n), uTraj = (N,m)`
+        """
         xTraj, uTraj = traj
         return jax.vmap(lambda x0, u0: cls.from_function(dynFun, x0, u0))(xTraj[:-1], uTraj)
 
@@ -128,7 +164,7 @@ class AffineDynamics(NamedTuple):
 
 class QuadraticDynamics(NamedTuple):
     """
-    Quadratic dynamics of the form:
+    Quadratic dynamics tuple (f, f_x, f_u, f_xx, f_ux, f_uu)
     ```
     f(x,u) = f + f_x @ x + f_u @ u + 0.5 * (x.T @ f_xx @ x + 2*u.T @ f_ux @ x + u.T @ f_uu @ u)
     ```
@@ -150,7 +186,10 @@ class QuadraticDynamics(NamedTuple):
 
     @classmethod
     def from_trajectory(cls, dynFun: Callable[[jnp.ndarray, jnp.ndarray], jnp.ndarray], traj: Trajectory):
-        """Second order Taylor series expansion of dynamics function `f(x,u)` about (xTraj,uTraj)"""
+        """
+        Second order Taylor series expansion of dynamics function `f(x,u)` about (xTraj,uTraj)
+        Dimensions must be: `xTraj = (N+1,n), uTraj = (N,m)`
+        """
         xTraj, uTraj = traj
         return jax.vmap(lambda x0, u0: cls.from_function(dynFun, x0, u0))(xTraj[:-1], uTraj)
 
@@ -166,10 +205,15 @@ class QuadraticDynamics(NamedTuple):
 
 
 class AffinePolicy(NamedTuple):
+    """
+    Affine control policy tuple: (l, L):
+    `u = l + L @ x`
+    """
     l: jnp.ndarray
     L: jnp.ndarray
 
     def __call__(self, x: jnp.ndarray, k: int = None, alpha: float = 1):
+        """Evaluate control policy for given x at time step k with optional affine scaling factor alpha"""
         l, L = self
         if k is None and l.ndim != 1:
             raise ValueError("Must specify index for multi-dimensional policy")
@@ -180,6 +224,10 @@ class AffinePolicy(NamedTuple):
 
 
 class QuadraticDeltaCost(NamedTuple):
+    """
+    Quadratic delta cost function for line search approximations
+    dJ_exp = alpha * dJ_lin + alpha**2 * dJ_quad
+    """
     dJ_lin: float
     dJ_quad: float
 

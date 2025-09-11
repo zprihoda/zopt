@@ -1,3 +1,18 @@
+"""
+Iterative LQR / Differential dynamic programming module
+- Algorithm based on Stanford AA203 notes and [TET12]
+- Several jax compatible improvements from StanfordASL/AA203-examples
+    - In particular see forwardPass2, ensurePositiveDefinite and the base NamedTuple pytree object architecture
+
+References
+----------
+- [TET12]: Yuval Tassa, Tom Erez, and Emanuel Todorov. Synthesis and stabilization of complex behaviors through
+    online trajectory optimization. In IEEE International Conference on Intelligent Robots and Systems (IROS),
+    2012.
+- StanfordASL/AA203-notes: https://github.com/StanfordASL/AA203-Notes
+- StanfordASL/AA203-examples: https://github.com/StanfordASL/AA203-Examples/blob/master/LQR%20Variants.ipynb
+"""
+
 import jax
 import jax.numpy as jnp
 

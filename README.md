@@ -3,39 +3,25 @@ A random collection of small projects
 
 ## TODO:
 ### ilqr-jax
-- Update demos
 - Documentation
     - Add documentation to pytrees
     - Add references (Stanford and Paper)
 
 ### All
-- ilqr-jax:
-    - Update iLQR to be fully jittable, see LQR Variants from stanford examples for help
-        - Migrate from class based to function based.
-            - More aligned with jax, see: https://docs.jax.dev/en/latest/jep/18137-numpy-scipy-scope.html#axis-5-functional-vs-object-oriented-apis
-            - Can do one function at a time
-        - Implement each individual function in a jax compliant manner:
-            - backward_riccati_step
-            - computeQ, consider co
-            - Use jax.lax.scan to implement
-    - Update other lqr functions to be jittable:
-        - Consider jax based implementations of infinite horizon lqr (continuous and discrete)
-        - For infinite horizon, compare runtime of scipy vs jitted versions
-    - Move cost function types to common modules?
-        - Only if it's useful for reuse, eg. Is it useful in other lqr functions?
-- Tasks:
-    - Indirect methods (port / cleanup Kirk algorithms)
-        - Implement fully jax compliant versions of each method?
-    - Direct Methods
-        - Same as indirect methods?
-    - MPC
-- Short Tasks:
-    - Create controllers module?
-        - Move proportionalFeedbackController from lqrUtils to controllers
-        - Add integral controller from integralLqrControl demo.
-        - Create/move tests
-- iLQR/DDP:
-    - Look into using jax.lax.cond to jit functions with conditionals
+- MPC
+    - Implement a generalized MPC architecture
+    - Demos:
+        - Convex optimization: linear dynamics with constraint
+        - iLQR MPC
+- Indirect methods (port / cleanup Kirk algorithms)
+    - Implement fully jax compliant versions of each method?
+- Direct Methods
+    - Same as indirect methods?
+- Create controllers module?
+    - Include a few common controller architectures
+    - Move proportionalFeedbackController from lqrUtils to controllers
+    - Add integral controller from integralLqrControl demo.
+    - Create/move tests
 - Simulator:
     - Add support for multi-rate systems
     - Generalize simBlocks + add signal map
