@@ -17,6 +17,21 @@ classifiers = [
   ]
 license = "MIT"
 license-files = ["LICEN[CS]E*"]
+dependencies = [
+  "matplotlib>=3.10.3",
+  "numpy>=2.3.2",
+  "jax>=0.7.0",
+  "scipy>=1.16.1",
+  ]
+
+[project.optional-dependencies]
+test=[
+  "pytest>=8.4.1",
+  "flake8>=7.3.0",
+  "flake8-pyproject>=1.2.3",
+  "yapf>=0.43.0",
+  ]
+demos = ["cvxpy>=1.7.1"]
 
 [project.urls]
 Homepage = "https://github.com/zprihoda/zopt"
