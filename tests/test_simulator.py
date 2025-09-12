@@ -1,6 +1,6 @@
 import numpy as np
 
-from zProj.simulator import Simulator, SimBlock
+from zopt.simulator import Simulator, SimBlock
 
 
 def dynFun(t, x, u):

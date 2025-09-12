@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from zProj.plottingTools import plotTimeTrajectory
+from zopt.plottingTools import plotTimeTrajectory
 
 
 def test_plotTimeTrajectory():

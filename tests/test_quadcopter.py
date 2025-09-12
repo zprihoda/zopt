@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from zProj.quadcopter import Quadcopter
+from zopt.quadcopter import Quadcopter
 
 
 def test_default_init():

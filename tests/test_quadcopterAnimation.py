@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-import zProj.quadcopterAnimation as quadAni
+import zopt.quadcopterAnimation as quadAni
 
 
 def test_getRectangularPrismVertices():

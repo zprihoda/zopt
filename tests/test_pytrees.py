@@ -1,6 +1,6 @@
 import jax.numpy as jnp
 import pytest
-import zProj.pytrees as pytrees
+import zopt.pytrees as pytrees
 
 
 def test_Trajectory():

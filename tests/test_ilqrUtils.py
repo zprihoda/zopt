@@ -1,8 +1,8 @@
 import jax
 import jax.numpy as jnp
 import pytest
-import zProj.ilqrUtils as ilqr
-import zProj.pytrees as pytrees
+import zopt.ilqrUtils as ilqr
+import zopt.pytrees as pytrees
 
 
 def test_trajectoryRollout():

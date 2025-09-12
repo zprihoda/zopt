@@ -18,7 +18,7 @@ import jax.numpy as jnp
 
 from functools import partial
 from typing import Callable
-from zProj.pytrees import (
+from zopt.pytrees import (
     Trajectory,
     AffineDynamics,
     QuadraticDynamics,

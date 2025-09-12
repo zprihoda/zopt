@@ -6,7 +6,7 @@ import scipy.linalg as spl
 
 from jax.experimental.ode import odeint
 from typing import Callable
-from zProj.jaxUtils import interpMapped
+from zopt.jaxUtils import interpMapped
 
 
 ## LQR Algorithms

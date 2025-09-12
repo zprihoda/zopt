@@ -2,7 +2,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-import zProj.lqrUtils as lqr
+import zopt.lqrUtils as lqr
 
 
 def test_infiniteHorizonLqr():
