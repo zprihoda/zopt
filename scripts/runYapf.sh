@@ -1,2 +1,2 @@
 #!/usr/bin/env bash
-yapf . --style=setup.cfg --in-place --recursive -e ".*"
+yapf . --style=pyproject.toml --in-place --recursive -e ".*"
