@@ -3,11 +3,11 @@ import jax
 import matplotlib.pyplot as plt
 import numpy as np
 
-from zProj.jaxUtils import interpMapped
-from zProj.quadcopter import Quadcopter
-from zProj.simulator import Simulator, SimBlock
-from zProj.plottingTools import plotTimeTrajectory
-from zProj.lqrUtils import infiniteHorizonIntegralLqr
+from zopt.jaxUtils import interpMapped
+from zopt.quadcopter import Quadcopter
+from zopt.simulator import Simulator, SimBlock
+from zopt.plottingTools import plotTimeTrajectory
+from zopt.lqrUtils import infiniteHorizonIntegralLqr
 
 
 def getOpenLoopTrajectory(

@@ -2,10 +2,10 @@ import jax.numpy as jnp
 import numpy as np
 import matplotlib.pyplot as plt
 
-from zProj.quadcopter import Quadcopter
-from zProj.lqrUtils import bilinearAffineLqr
-from zProj.simulator import Simulator, SimBlock
-from zProj.plottingTools import plotTimeTrajectory
+from zopt.quadcopter import Quadcopter
+from zopt.lqrUtils import bilinearAffineLqr
+from zopt.simulator import Simulator, SimBlock
+from zopt.plottingTools import plotTimeTrajectory
 
 rng = np.random.default_rng()
 

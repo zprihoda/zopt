@@ -5,7 +5,7 @@ from itertools import product
 from functools import partial
 from matplotlib.animation import FuncAnimation
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-from zProj.quadcopter import Quadcopter
+from zopt.quadcopter import Quadcopter
 
 
 def getRectangularPrismVertices(center: np.ndarray, dx: float, dy: float, dz: float, R: np.ndarray = np.eye(3)):

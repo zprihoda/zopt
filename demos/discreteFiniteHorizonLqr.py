@@ -2,10 +2,10 @@ import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import numpy as np
 
-from zProj.quadcopter import Quadcopter
-from zProj.simulator import Simulator, SimBlock
-from zProj.plottingTools import plotTimeTrajectory
-from zProj.lqrUtils import discreteFiniteHorizonLqr, proportionalFeedbackController
+from zopt.quadcopter import Quadcopter
+from zopt.simulator import Simulator, SimBlock
+from zopt.plottingTools import plotTimeTrajectory
+from zopt.lqrUtils import discreteFiniteHorizonLqr, proportionalFeedbackController
 
 
 def main():

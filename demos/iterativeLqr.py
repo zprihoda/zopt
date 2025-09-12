@@ -2,11 +2,11 @@ import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import numpy as np
 
-from zProj.ilqrUtils import iterativeLqr
-from zProj.plottingTools import plotTimeTrajectory
-from zProj.quadcopter import Quadcopter
-from zProj.quadcopterAnimation import QuadcopterAnimation
-from zProj.simulator import Simulator, SimBlock
+from zopt.ilqrUtils import iterativeLqr
+from zopt.plottingTools import plotTimeTrajectory
+from zopt.quadcopter import Quadcopter
+from zopt.quadcopterAnimation import QuadcopterAnimation
+from zopt.simulator import Simulator, SimBlock
 
 
 def cost(x, u, Q, R):

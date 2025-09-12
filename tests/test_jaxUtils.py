@@ -1,6 +1,6 @@
 import jax.numpy as jnp
 import pytest
-import zProj.jaxUtils as jaxUtils
+import zopt.jaxUtils as jaxUtils
 
 from unittest import mock
 

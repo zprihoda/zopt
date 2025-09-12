@@ -1,0 +1,62 @@
+[build-system]
+requires = ["hatchling >= 1.26"]
+build-backend = "hatchling.build"
+
+[project]
+name = "zopt"
+version = "0.0.1"
+authors = [
+  {name="Zachary Prihoda", email="zhoda93@gmail.com"}
+  ]
+description = "Random collection of optimal control algorithms"
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+  ]
+license = "MIT"
+license-files = ["LICEN[CS]E*"]
+dependencies = [
+  "matplotlib>=3.10.3",
+  "numpy>=2.3.2",
+  "jax>=0.7.0",
+  "scipy>=1.16.1",
+  ]
+
+[project.optional-dependencies]
+dev=[
+  "pytest>=8.4.1",
+  "flake8>=7.3.0",
+  "flake8-pyproject>=1.2.3",
+  "yapf>=0.43.0",
+  "cvxpy>=1.7.1",
+  "pip-tools>=7.5.0"
+  ]
+test=[
+  "pytest>=8.4.1",
+  "flake8>=7.3.0",
+  "flake8-pyproject>=1.2.3",
+  "yapf>=0.43.0",
+  ]
+demos = ["cvxpy>=1.7.1"]
+
+[project.urls]
+Homepage = "https://github.com/zprihoda/zopt"
+Issues = "https://github.com/zprihoda/zopt/issues"
+
+[tool.yapf]
+BASED_ON_STYLE = "google"
+COLUMN_LIMIT = 120
+SPLIT_BEFORE_FIRST_ARGUMENT = true
+SPLIT_ARGUMENTS_WHEN_COMMA_TERMINATED = true
+SPLIT_ALL_TOP_LEVEL_COMMA_SEPARATED_VALUES = true
+DEDENT_CLOSING_BRACKETS = true
+
+[tool.flake8]
+MAX-LINE-LENGTH = 120
+IGNORE = ['E302','E231','E226','E741','E731','E266','W504']
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+testpaths = ["tests"]
