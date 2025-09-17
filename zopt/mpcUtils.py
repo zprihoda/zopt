@@ -1,10 +1,24 @@
 import cvxpy as cvx
 import numpy as np
 
-from pytrees import Trajectory
+from zopt.pytrees import Trajectory
+
 
 class lqrMpc():
-    def __init__(self, A: np.ndarray, B: np.ndarray, Q: np.ndarray, R: np.ndarray, N: int, x_lb: np.ndarray, x_ub: np.ndarray, u_lb: np.ndaray, u_ub: np.ndarray, Qf: np.ndarray = None):
+
+    def __init__(
+        self,
+        A: np.ndarray,
+        B: np.ndarray,
+        Q: np.ndarray,
+        R: np.ndarray,
+        N: int,
+        x_lb: np.ndarray,
+        x_ub: np.ndarray,
+        u_lb: np.ndarray,
+        u_ub: np.ndarray,
+        Qf: np.ndarray = None
+    ):
         """
         Setup an LQR MPC problem
 
@@ -26,18 +40,18 @@ class lqrMpc():
             Qf = Q
 
         # Setup cvx problem
-        n,m = B.shape()
-        x = cvx.Variable((N+1, n))
-        u = cvx.Variable((N, m))
-        x0 = cvx.Parameter(n)
+        n, m = B.shape
+        x = cvx.Variable((N + 1, n), name="x")
+        u = cvx.Variable((N, m), name="u")
+        x0 = cvx.Parameter(n, name="x0")
         runningCost = cvx.sum([cvx.quad_form(x[k], Q) + cvx.quad_form(u[k], R) for k in range(N)])
         terminalCost = cvx.quad_form(x[-1], Qf)
-        objective = terminalCost + runningCost
-        constr = [x[k+1] == A@x[k] + B@u[k] for k in range(N)]
-        constr += [x >= x_lb, x <= x_ub]
-        constr += [u >= u_lb, u <= u_ub]
+        cost = terminalCost + runningCost
+        constr = [x[k + 1] == A @ x[k] + B @ u[k] for k in range(N)]
+        constr += [x >= x_lb[None, :], x <= x_ub[None, :]]
+        constr += [u >= u_lb[None, :], u <= u_ub[None, :]]
         constr += [x[0] == x0]
-        self.prob = cvx.Problem(objective, constr)
+        self.prob = cvx.Problem(cvx.Minimize(cost), constr)
 
     def solve(self, x0: np.ndarray) -> tuple[np.ndarray, Trajectory, str]:
         """
@@ -54,7 +68,7 @@ class lqrMpc():
             status : cvx problem status; one of [optimal, infeasible, unbounded]
         """
         self.prob.param_dict['x0'].value = x0
-        self.prob.solve()
+        self.prob.solve(solver="OSQP")
         status = self.prob.status
         xTraj = self.prob.var_dict['x'].value
         uTraj = self.prob.var_dict['u'].value
