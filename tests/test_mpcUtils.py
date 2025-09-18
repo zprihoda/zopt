@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 import zopt.mpcUtils as mpc
 
+
 @pytest.mark.filterwarnings("ignore::PendingDeprecationWarning")
 def test_lqrMpc():
     A = np.eye(2)
