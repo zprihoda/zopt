@@ -10,7 +10,7 @@ def main():
     x0 = np.zeros(12)
     x0[9:12] = np.array([10, 10, 10])
     dt = 0.1
-    N = 50  # MPC horizon
+    N = 25  # MPC horizon
     Q = np.eye(12)
     R = np.eye(4)
     tf = 20
@@ -44,23 +44,24 @@ def main():
         x = xMpc[i][1]
 
     # plot results
-    fig, axs = plt.subplots(3, 1, sharex=True)
     t_arr = np.arange(N_t) * dt
     tMpc = np.arange(N_t + N + 1) * dt
 
-    # Plot mpc trajectories
-    for i in range(N_t):
-        for j in range(3):
-            axs[j].plot(tMpc[i:i + N + 1], xMpc[i, :, 9 + j], alpha=0.1, color="blue")
+    groups = ["Body velocities", "Body Rates", "Euler Angles", "Positions"]
+    signals = ['u', 'v', 'w', 'p', 'q', 'r', 'phi', 'theta', 'psi', 'x', 'y', 'z']
+    for idx_group in range(len(groups)):
+        fig, axs = plt.subplots(3, 1, sharex=True)
+        for i in range(N_t):
+            for j in range(3):
+                axs[j].plot(tMpc[i:i + N + 1], xMpc[i, :, 3 * idx_group + j], alpha=0.1, color="blue")
 
-    # Plot full trajectories
-    for j in range(3):
-        axs[j].plot(t_arr, xMpc[:, 0, 9 + j], color="blue")
-        axs[j].grid()
-    axs[0].set_ylabel("x")
-    axs[1].set_ylabel("y")
-    axs[2].set_ylabel("z")
-    axs[0].set_title("Inertial Positions")
+        # Plot full trajectories
+        for j in range(3):
+            axs[j].plot(t_arr, xMpc[:, 0, 3 * idx_group + j], color="blue")
+            axs[j].set_ylabel(signals[3 * idx_group + j])
+            axs[j].grid()
+        axs[0].set_title(groups[idx_group])
+        axs[0].set_xlim([0, tf])
     plt.show()
 
 
