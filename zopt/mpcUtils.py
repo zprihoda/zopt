@@ -73,7 +73,7 @@ class lqrMpc():
             status : cvx problem status; one of [optimal, infeasible, unbounded]
         """
         self.prob.param_dict['x0'].value = x0
-        self.prob.solve(solver="OSQP")
+        self.prob.solve(solver="OSQP", eps_prim_inf=1e-3, eps_dual_inf=1e-3, eps_abs=1e-2, eps_rel=1e-2)
         status = self.prob.status
         xTraj = self.prob.var_dict['x'].value
         uTraj = self.prob.var_dict['u'].value

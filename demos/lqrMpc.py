@@ -33,8 +33,9 @@ def main():
     x = x0
 
     mpcProb = lqrMpc(A, B, Q, R, N, x_lb, x_ub, u_lb, u_ub)
-    # tol = 1e-6
+    tol = 1e-6
     for i in range(N_t):
+        x = np.clip(x, x_lb + tol, x_ub - tol)
         u, traj, status = mpcProb.solve(x)
         xMpc[i] = traj.xTraj
         uMpc[i] = traj.uTraj
