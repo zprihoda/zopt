@@ -58,13 +58,14 @@ class lqrMpc():
         constr += [x[0] == x0]
         self.prob = cvx.Problem(cvx.Minimize(cost), constr)
 
-    def solve(self, x0: np.ndarray) -> tuple[np.ndarray, Trajectory, str]:
+    def solve(self, x0: np.ndarray, **kwargs: dict) -> tuple[np.ndarray, Trajectory, str]:
         """
         Solve the MPC step at state x0
 
         Arguments
         ---------
             x0 : Initial state
+            **kwargs : Keyword arguments to pass to `cvxpy.Problem.solve`. See cvxpy documentations for details
 
         Returns
         -------
@@ -73,7 +74,7 @@ class lqrMpc():
             status : cvx problem status; one of [optimal, infeasible, unbounded]
         """
         self.prob.param_dict['x0'].value = x0
-        self.prob.solve(solver="OSQP", eps_prim_inf=1e-3, eps_dual_inf=1e-3, eps_abs=1e-2, eps_rel=1e-2)
+        self.prob.solve(**kwargs)
         status = self.prob.status
         xTraj = self.prob.var_dict['x'].value
         uTraj = self.prob.var_dict['u'].value
