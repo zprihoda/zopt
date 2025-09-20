@@ -83,7 +83,7 @@ class lqrMpc():
 def plotMpcTrajectory(traj: np.ndarray,
                       dt: float,
                       names: list[str] = None,
-                      title: str = None) -> tuple[plt.figure, plt.axes]:
+                      title: str = None) -> tuple[Figure, plt.Axes]:
     """
     Plot an mpc trajectory array
 
@@ -93,6 +93,7 @@ def plotMpcTrajectory(traj: np.ndarray,
             traj[i] = MPC trajectory at time step i of shape (N_mpc, n)
         dt : Time step
         names : List of n signal names
+        title : Figure title
     """
     (N_t, N_mpc, n) = traj.shape
 
@@ -120,18 +121,23 @@ def plotMpcTrajectory(traj: np.ndarray,
     return fig, axs
 
 
-def _initializeMpcAnimation(traj, tNom, names,
-                            title) -> tuple[Figure, list[plt.Axes], tuple[list[Line2D], list[list[Line2D]]]]:
-    # Initialize plot
+def _initializeMpcAnimation(traj: np.ndarray, tNom: np.ndarray, names: list[str],
+                            title: str) -> tuple[Figure, list[plt.Axes], tuple[list[Line2D], list[list[Line2D]]]]:
+    """Initialize MPC animation figure"""
     n = traj.shape[2]
+
+    # Determine y limits
     yMax = np.max(traj, axis=(0, 1))
     yMin = np.min(traj, axis=(0, 1))
-
-    fig, axs = plt.subplots(n, 1, sharex=True)
+    idx = (yMax == yMin)
+    yMax[idx] = 1
+    yMin[idx] = -1
 
     if names is None:
         names = [f'x{i}' for i in range(n)]
 
+    # Setup figure+axes, apply formatting and create needed line objects
+    fig, axs = plt.subplots(n, 1, sharex=True)
     linesNom = []
     linesMpc = []
     for i in range(n):
@@ -153,7 +159,8 @@ def _initializeMpcAnimation(traj, tNom, names,
     return fig, axs, (linesNom, linesMpc)
 
 
-def _updateMpcAnimation(k, traj, tMpc, objs):
+def _updateMpcAnimation(k: int, traj: np.ndarray, tMpc: np.ndarray, objs: tuple[list[Line2D], list[list[Line2D]]]):
+    """Update MPC animation axes for k-th frame"""
     N_t, N_mpc, n = traj.shape
     linesNom, linesMpc = objs
 
@@ -168,15 +175,26 @@ def _updateMpcAnimation(k, traj, tMpc, objs):
 def animateMpcTrajectory(
     traj: np.ndarray, dt: float, names: list[str] = None, title: str = None, speed: float = 1
 ) -> Animation:
+    """
+    Animate an MPC trajectory
+
+    Arguments
+    ---------
+        traj : Array of shape (N_t, N_mpc, n) such that:
+            traj[i] = MPC trajectory at time step i of shape (N_mpc, n)
+        dt : Time step
+        names : List of n signal names
+        title : Figure title
+        speed : Speed of animation, as a multiple of real time, eg. 2 = twice real time
+
+    Returns
+    -------
+        Animation object
+    """
     N_t, N_mpc, n = traj.shape
     tNom = np.arange(N_t) * dt
     tMpc = np.arange(N_t + N_mpc) * dt
     fig, axs, objs = _initializeMpcAnimation(traj, tNom, names, title)
-
-    # _updateMpcAnimation(0, traj, tMpc, objs)
-    # _updateMpcAnimation(10, traj, tMpc, objs)
-    # plt.show()
-
     interval = (tNom[1] - tNom[0]) * 1000 / speed
     animFun = partial(_updateMpcAnimation, traj=traj, tMpc=tMpc, objs=objs)
     ani = FuncAnimation(fig, animFun, frames=N_t, interval=interval, repeat=False)
