@@ -43,3 +43,13 @@ def test_plotMpcTrajectory2():
 
     fig, ax = mpc.plotMpcTrajectory(traj, dt, names=['a', 'b', 'c', 'd'], title="foobar")
     plt.close(fig)
+
+
+@pytest.mark.filterwarnings("ignore:Animation was deleted")
+def test_animateMpcTrajectory():
+    N_t = 2
+    N_mpc = 3
+    n = 4
+    dt = 0.1
+    traj = np.zeros((N_t, N_mpc, n))
+    mpc.animateMpcTrajectory(traj, dt)
