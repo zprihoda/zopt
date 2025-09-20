@@ -2,6 +2,10 @@ import cvxpy as cvx
 import matplotlib.pyplot as plt
 import numpy as np
 
+from functools import partial
+from matplotlib.figure import Figure
+from matplotlib.lines import Line2D
+from matplotlib.animation import Animation, FuncAnimation
 from zopt.pytrees import Trajectory
 
 
@@ -110,6 +114,70 @@ def plotMpcTrajectory(traj: np.ndarray,
         axs[j].set_ylabel(names[j])
         axs[j].grid()
     axs[0].set_xlim([0, tNom[-1]])
+    axs[-1].set_xlabel("time")
     if title is not None:
         axs[0].set_title(title)
     return fig, axs
+
+
+def _initializeMpcAnimation(traj, tNom, names,
+                            title) -> tuple[Figure, list[plt.Axes], tuple[list[Line2D], list[list[Line2D]]]]:
+    # Initialize plot
+    n = traj.shape[2]
+    yMax = np.max(traj, axis=(0, 1))
+    yMin = np.min(traj, axis=(0, 1))
+
+    fig, axs = plt.subplots(n, 1, sharex=True)
+
+    if names is None:
+        names = [f'x{i}' for i in range(n)]
+
+    linesNom = []
+    linesMpc = []
+    for i in range(n):
+        linesMpc.append([])
+        lineNom, = axs[i].plot([], [], color="blue")
+        linesNom.append(lineNom)
+        for j in range(len(tNom)):  # Create enough empty lines for the animation
+            line, = axs[i].plot([], [], color="blue", alpha=0.1)
+            linesMpc[i].append(line)
+        axs[i].set_ylim([yMin[i], yMax[i]])
+        axs[i].set_ylabel(names[i])
+        axs[i].grid()
+    axs[0].set_xlim([0, tNom[-1]])
+    axs[-1].set_xlabel("time")
+
+    if title is not None:
+        axs[0].set_title(title)
+
+    return fig, axs, (linesNom, linesMpc)
+
+
+def _updateMpcAnimation(k, traj, tMpc, objs):
+    N_t, N_mpc, n = traj.shape
+    linesNom, linesMpc = objs
+
+    N_k = min(N_t, k + N_mpc)
+    tNom = tMpc[0:N_k]
+    xNom = np.concatenate([traj[0:k, 0], traj[k, 0:N_k - k]])
+    for i in range(n):
+        linesNom[i].set_data(tNom, xNom[:, i])
+        linesMpc[i][k].set_data(tMpc[k:k + N_mpc], traj[k, :, i])
+
+
+def animateMpcTrajectory(
+    traj: np.ndarray, dt: float, names: list[str] = None, title: str = None, speed: float = 1
+) -> Animation:
+    N_t, N_mpc, n = traj.shape
+    tNom = np.arange(N_t) * dt
+    tMpc = np.arange(N_t + N_mpc) * dt
+    fig, axs, objs = _initializeMpcAnimation(traj, tNom, names, title)
+
+    # _updateMpcAnimation(0, traj, tMpc, objs)
+    # _updateMpcAnimation(10, traj, tMpc, objs)
+    # plt.show()
+
+    interval = (tNom[1] - tNom[0]) * 1000 / speed
+    animFun = partial(_updateMpcAnimation, traj=traj, tMpc=tMpc, objs=objs)
+    ani = FuncAnimation(fig, animFun, frames=N_t, interval=interval, repeat=False)
+    return ani

@@ -2,7 +2,7 @@ import jax
 import matplotlib.pyplot as plt
 import numpy as np
 
-from zopt.mpcUtils import lqrMpc, plotMpcTrajectory
+from zopt.mpcUtils import lqrMpc, plotMpcTrajectory, animateMpcTrajectory
 from zopt.quadcopter import Quadcopter
 
 
@@ -46,6 +46,10 @@ def main():
     plotMpcTrajectory(xMpc[:, :, 6:9], dt, names=['phi', 'theta', 'psi'], title='Euler Angles')
     plotMpcTrajectory(xMpc[:, :, 9:12], dt, names=['x', 'y', 'z'], title='Positions')
     plotMpcTrajectory(uMpc, dt, names=['thrust', 'Mx', 'My', 'Mz'], title='Controls')
+    plt.show()
+
+    # Animate reuslts
+    _ = animateMpcTrajectory(xMpc[:, :, 6:9], dt, names=['phi', 'theta', 'psi'], title='Euler Angles', speed=2)
     plt.show()
 
 
