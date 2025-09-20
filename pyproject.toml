@@ -22,6 +22,7 @@ dependencies = [
   "numpy>=2.3.2",
   "jax>=0.7.0",
   "scipy>=1.16.1",
+  "cvxpy>=1.7.1",
   ]
 
 [project.optional-dependencies]
@@ -30,7 +31,6 @@ dev=[
   "flake8>=7.3.0",
   "flake8-pyproject>=1.2.3",
   "yapf>=0.43.0",
-  "cvxpy>=1.7.1",
   "pip-tools>=7.5.0"
   ]
 test=[
@@ -39,7 +39,7 @@ test=[
   "flake8-pyproject>=1.2.3",
   "yapf>=0.43.0",
   ]
-demos = ["cvxpy>=1.7.1"]
+demos = []  # Currently no extra dependencies for demos
 
 [project.urls]
 Homepage = "https://github.com/zprihoda/zopt"
