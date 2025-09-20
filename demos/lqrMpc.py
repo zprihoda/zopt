@@ -2,7 +2,7 @@ import jax
 import matplotlib.pyplot as plt
 import numpy as np
 
-from zopt.mpcUtils import lqrMpc
+from zopt.mpcUtils import lqrMpc, plotMpcTrajectory
 from zopt.quadcopter import Quadcopter
 
 
@@ -17,7 +17,7 @@ def main():
     x_ub = np.array([1, 1, 1, 0.3, 0.3, 0.1, 0.5, 0.5, np.inf, np.inf, np.inf, np.inf])
     x_lb = -x_ub
     u_ub = np.array([3, 3, 3, 3])
-    u_lb = np.array([-3, -3, -3, -3])
+    u_lb = -u_ub
 
     # Get quadcopter linear dynamics
     ac = Quadcopter()
@@ -35,33 +35,17 @@ def main():
     mpcProb = lqrMpc(A, B, Q, R, N, x_lb, x_ub, u_lb, u_ub)
     # tol = 1e-6
     for i in range(N_t):
-        # x = np.clip(x, x_lb + tol, x_ub + tol)
         u, traj, status = mpcProb.solve(x)
         xMpc[i] = traj.xTraj
         uMpc[i] = traj.uTraj
-        # x = x + dt*np.asarray(ac.inertialDynamics(x, u+uTrim))
-        # x = A@x + B@u
-        x = xMpc[i][1]
+        x = xMpc[i][1]  # Assume perfect tracking
 
     # plot results
-    t_arr = np.arange(N_t) * dt
-    tMpc = np.arange(N_t + N + 1) * dt
-
-    groups = ["Body velocities", "Body Rates", "Euler Angles", "Positions"]
-    signals = ['u', 'v', 'w', 'p', 'q', 'r', 'phi', 'theta', 'psi', 'x', 'y', 'z']
-    for idx_group in range(len(groups)):
-        fig, axs = plt.subplots(3, 1, sharex=True)
-        for i in range(N_t):
-            for j in range(3):
-                axs[j].plot(tMpc[i:i + N + 1], xMpc[i, :, 3 * idx_group + j], alpha=0.1, color="blue")
-
-        # Plot full trajectories
-        for j in range(3):
-            axs[j].plot(t_arr, xMpc[:, 0, 3 * idx_group + j], color="blue")
-            axs[j].set_ylabel(signals[3 * idx_group + j])
-            axs[j].grid()
-        axs[0].set_title(groups[idx_group])
-        axs[0].set_xlim([0, tf])
+    plotMpcTrajectory(xMpc[:, :, 0:3], dt, names=['u', 'v', 'w'], title='Body Velocities')
+    plotMpcTrajectory(xMpc[:, :, 3:6], dt, names=['p', 'q', 'r'], title='Body Rates')
+    plotMpcTrajectory(xMpc[:, :, 6:9], dt, names=['phi', 'theta', 'psi'], title='Euler Angles')
+    plotMpcTrajectory(xMpc[:, :, 9:12], dt, names=['x', 'y', 'z'], title='Positions')
+    plotMpcTrajectory(uMpc, dt, names=['thrust', 'Mx', 'My', 'Mz'], title='Controls')
     plt.show()
 
 

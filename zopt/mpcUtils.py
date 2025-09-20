@@ -1,4 +1,5 @@
 import cvxpy as cvx
+import matplotlib.pyplot as plt
 import numpy as np
 
 from zopt.pytrees import Trajectory
@@ -73,3 +74,42 @@ class lqrMpc():
         xTraj = self.prob.var_dict['x'].value
         uTraj = self.prob.var_dict['u'].value
         return uTraj[0], Trajectory(xTraj, uTraj), status
+
+
+def plotMpcTrajectory(traj: np.ndarray,
+                      dt: float,
+                      names: list[str] = None,
+                      title: str = None) -> tuple[plt.figure, plt.axes]:
+    """
+    Plot an mpc trajectory array
+
+    Arguments
+    ---------
+        traj : Array of shape (N_t, N_mpc, n) such that:
+            traj[i] = MPC trajectory at time step i of shape (N_mpc, n)
+        dt : Time step
+        names : List of n signal names
+    """
+    (N_t, N_mpc, n) = traj.shape
+
+    if names is None:
+        names = [f'x{i}' for i in range(n)]
+
+    tNom = np.arange(N_t) * dt
+    tMpc = np.arange(N_t + N_mpc) * dt
+
+    # Plot each MPC trajectory
+    fig, axs = plt.subplots(n, 1, sharex=True)
+    for i in range(N_t):
+        for j in range(n):
+            axs[j].plot(tMpc[i:i + N_mpc], traj[i, :, j], alpha=0.1, color="blue")
+
+    # Plot full trajectories
+    for j in range(3):
+        axs[j].plot(tNom, traj[:, 0, j], color="blue")
+        axs[j].set_ylabel(names[j])
+        axs[j].grid()
+    axs[0].set_xlim([0, tNom[-1]])
+    if title is not None:
+        axs[0].set_title(title)
+    return fig, axs
