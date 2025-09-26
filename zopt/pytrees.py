@@ -158,7 +158,7 @@ class AffineDynamics(NamedTuple):
         f, f_x, f_u, x0, u0 = self
         if k is None and f.ndim != 1:
             raise ValueError("Must specify index for multi-dimensional dynamics")
-        return f + f_x @ (x-x0) + f_u @ (u-u0) if k is None else self[k](x, u)
+        return f + f_x @ (x - x0) + f_u @ (u - u0) if k is None else self[k](x, u)
 
     def __getitem__(self, k: int):
         return jax.tree.map(lambda x: x[k], self)
