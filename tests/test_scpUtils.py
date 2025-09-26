@@ -1,9 +1,10 @@
 import numpy as np
+import pytest
 
 from zopt.pytrees import Trajectory
 from zopt.scpUtils import sequentialConvexProgramming
 
-
+@pytest.mark.filterwarnings("ignore::PendingDeprecationWarning")
 def test_sequentialConvexProgramming():
     A = np.eye(2)
     B = np.eye(2)
@@ -22,6 +23,3 @@ def test_sequentialConvexProgramming():
 
     traj, converged = sequentialConvexProgramming(traj0, x0, f, runningCost, terminalCost, dt)
     assert converged
-
-
-test_sequentialConvexProgramming()

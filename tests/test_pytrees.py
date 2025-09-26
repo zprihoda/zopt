@@ -173,11 +173,11 @@ def test_QuadraticCostFunction_fromTrajectory():
 
 
 def test_AffineDynamics_base():
-    f = jnp.array([1, 1])
+    f0 = jnp.array([1, 1])
     f_x = jnp.array([[2, 3], [4, 5]])
     f_u = jnp.array([[6], [7]])
-    dynamics = pytrees.AffineDynamics(f, f_x, f_u)
-    assert jnp.all(dynamics.f == f)
+    dynamics = pytrees.AffineDynamics(f0, f_x, f_u)
+    assert jnp.all(dynamics.f0 == f0)
     assert jnp.all(dynamics.f_x == f_x)
     assert jnp.all(dynamics.f_u == f_u)
 
@@ -188,50 +188,50 @@ def test_AffineDynamics_base():
 
 
 def test_AffineDynamics_getItem():
-    f = jnp.array([0, 1])
+    f0 = jnp.array([0, 1])
     f_x = jnp.eye(2)
     f_u = jnp.eye(2)
-    dyn = pytrees.AffineDynamics(f, f_x, f_u)
+    dyn = pytrees.AffineDynamics(f0, f_x, f_u)
 
     dyn0 = dyn[0]
-    assert dyn0.f == f[0]
+    assert dyn0.f0 == f0[0]
     assert jnp.all(dyn0.f_x == f_x[0])
     assert jnp.all(dyn0.f_u == f_u[0])
 
     dyn1 = dyn[1]
-    assert dyn1.f == f[1]
+    assert dyn1.f0 == f0[1]
     assert jnp.all(dyn1.f_x == f_x[1])
     assert jnp.all(dyn1.f_u == f_u[1])
 
 
 def test_AffineDynamics_fromFunction():
-    f = jnp.array([1, 1])
+    f0 = jnp.array([1, 1])
     f_x = jnp.array([[2, 3], [4, 5]])
     f_u = jnp.array([[6], [7]])
-    dynFun = lambda x, u: f + f_x @ x + f_u @ u
+    dynFun = lambda x, u: f0 + f_x @ x + f_u @ u
     x0 = jnp.zeros(2)
     u0 = jnp.zeros(1)
 
     dynamics = pytrees.AffineDynamics.from_function(dynFun, x0, u0)
-    assert jnp.all(dynamics.f == f)
+    assert jnp.all(dynamics.f0 == f0)
     assert jnp.all(dynamics.f_x == f_x)
     assert jnp.all(dynamics.f_u == f_u)
 
 
 def test_AffineDynamics_fromTrajectory():
-    f = jnp.array([1, 1])
+    f0 = jnp.array([1, 1])
     f_x = jnp.array([[2, 3], [4, 5]])
     f_u = jnp.array([[6], [7]])
-    dynFun = lambda x, u: f + f_x @ x + f_u @ u + 0.5 * x.T @ x
+    dynFun = lambda x, u: f0 + f_x @ x + f_u @ u + 0.5 * x.T @ x
     x0 = jnp.array([[0., 0], [1, 0], [2, 0]])
     u0 = jnp.zeros((2, 1))
     traj = pytrees.Trajectory(x0, u0)
 
     dynamics = pytrees.AffineDynamics.from_trajectory(dynFun, traj)
-    assert jnp.all(dynamics[0].f == f)
+    assert jnp.all(dynamics[0].f0 == f0)
     assert jnp.all(dynamics[0].f_x == f_x)
     assert jnp.all(dynamics[0].f_u == f_u)
-    assert jnp.all(dynamics[1].f == dynFun(x0[1], u0[1]))
+    assert jnp.all(dynamics[1].f0 == dynFun(x0[1], u0[1]) - (f_x + x0[1]) @ x0[1])
     assert jnp.all(dynamics[1].f_x == f_x + x0[1])
     assert jnp.all(dynamics[1].f_u == f_u)
 
