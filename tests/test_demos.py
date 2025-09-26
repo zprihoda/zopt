@@ -13,6 +13,7 @@ demoList = [os.path.basename(demo).replace(".py", "") for demo in glob(demoPatte
 @pytest.mark.slow
 @pytest.mark.parametrize("demo", demoList)
 @pytest.mark.filterwarnings("ignore:Animation was deleted")
+@pytest.mark.filterwarnings("ignore::PendingDeprecationWarning")
 def test_demos(monkeypatch, demo):
     try:
         monkeypatch.setattr("matplotlib.pyplot.show", lambda: None)
