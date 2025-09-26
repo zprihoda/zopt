@@ -15,18 +15,25 @@ from zopt.pytrees import Trajectory, AffineDynamics
 
 
 def _setupProblem(N, n, m, dt, runningCost, terminalCost, x0):
+    """
+    Setup the cvx problem with tuneable parameters
+
+    NOTE: The parameters are flattened from 3D to 2D arrays to be compatible with cvxpys canonicalization backend which
+        doesn't support > 2D variables / parameters. This will be fixed in a future release, in which case we can
+        un-flatten f_x and f_u.
+    """
     x = cvx.Variable((N + 1, n), name="x")
     u = cvx.Variable((N, m), name="u")
     g = lambda x, u: dt * runningCost(x, u)
     gf = terminalCost
     f0 = cvx.Parameter((N, n), name="f0")
-    f_x = cvx.Parameter((N, n, n), name="f_x")
-    f_u = cvx.Parameter((N, n, m), name="f_u")
+    f_x = cvx.Parameter((N, n*n), name="f_x")
+    f_u = cvx.Parameter((N, n*m), name="f_u")
 
     cost = gf(x[-1]) + cvx.sum([g(x[k], u[k]) for k in range(N)])
     objective = cvx.Minimize(cost)
 
-    dyn = lambda x, u, k: x[k] + dt * (f0[k] + f_x[k] @ x[k] + f_u[k] @ u[k])
+    dyn = lambda x, u, k: x[k] + dt * (f0[k] + f_x[k].reshape((n,n), 'C') @ x[k] + f_u[k].reshape((n,m), 'C') @ u[k])
 
     constraints = [x[0] == x0]
     constraints += [x[k + 1] == dyn(x, u, k) for k in range(N)]
@@ -36,9 +43,10 @@ def _setupProblem(N, n, m, dt, runningCost, terminalCost, x0):
 
 def _solveProblem(prob, affine_dynamics):
     # Updates prob parameters and solves
+    N,n,m = affine_dynamics.f_u.shape
     prob.param_dict['f0'].value = np.asarray(affine_dynamics.f0)
-    prob.param_dict['f_x'].value = np.asarray(affine_dynamics.f_x)
-    prob.param_dict['f_u'].value = np.asarray(affine_dynamics.f_u)
+    prob.param_dict['f_x'].value = np.asarray(affine_dynamics.f_x).reshape((N,n*n))
+    prob.param_dict['f_u'].value = np.asarray(affine_dynamics.f_u).reshape((N,n*m))
 
     J = prob.solve()
 
