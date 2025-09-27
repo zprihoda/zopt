@@ -55,7 +55,7 @@ DEDENT_CLOSING_BRACKETS = true
 
 [tool.flake8]
 MAX-LINE-LENGTH = 120
-IGNORE = ['E302','E231','E226','E741','E731','E266','W504']
+IGNORE = ['E302','E231','E226','E741','E731','E266','W503','W504']
 
 [tool.pytest.ini_options]
 minversion = "6.0"

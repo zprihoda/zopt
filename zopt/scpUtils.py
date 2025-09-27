@@ -10,7 +10,6 @@ TODO:
 """
 
 import cvxpy as cvx
-import jax
 import jax.numpy as jnp
 import numpy as np
 
