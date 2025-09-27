@@ -1,3 +1,4 @@
+import jax.numpy as jnp
 import numpy as np
 import pytest
 
@@ -40,12 +41,7 @@ def test_sequentialConvexProgramming_ineq():
     f = lambda x, u: A @ x + B @ u
     runningCost = lambda x, u: x @ Q @ x + u @ R @ u
     terminalCost = lambda x: x @ Q @ x
-    f_ineq = [
-        lambda x, u: -x[0],     # x >= 0
-        lambda x, u: -x[1],
-        lambda x, u: x[0] - 1.1, # x <= 1.1
-        lambda x, u: x[1] - 1.1
-        ]
+    f_ineq = lambda x, u: jnp.concatenate([-x, x-1.1])
 
     traj, converged = sequentialConvexProgramming(traj0, x0, f, runningCost, terminalCost, dt, ineqConstraints=f_ineq)
     assert converged
@@ -66,9 +62,7 @@ def test_sequentialConvexProgramming_eq():
     f = lambda x, u: A @ x + B @ u
     runningCost = lambda x, u: x @ Q @ x + u @ R @ u
     terminalCost = lambda x: x @ Q @ x
-    f_eq = [
-        lambda x, u: x[0] - 1,     # x[0] == 0
-        ]
+    f_eq = lambda x, u: jnp.array([x[0] - 1])
 
     traj, converged = sequentialConvexProgramming(traj0, x0, f, runningCost, terminalCost, dt, eqConstraints=f_eq)
     assert converged

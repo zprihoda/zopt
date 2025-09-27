@@ -11,6 +11,7 @@ TODO:
 
 import cvxpy as cvx
 import jax
+import jax.numpy as jnp
 import numpy as np
 
 from typing import Callable
@@ -58,19 +59,19 @@ def _setupProblem(N, n, m, dt, runningCost, terminalCost, x0, n_ineq, n_eq):
     return prob
 
 
-def _solveProblem(prob, affine_dynamics, affine_ineq, affine_eq):
+def _solveProblem(prob, affine_dynamics, affine_ineq, affine_eq, n_ineq, n_eq):
     # Updates prob parameters and solves
     N,n,m = affine_dynamics.f_u.shape
     prob.param_dict['f0'].value = np.asarray(affine_dynamics.f0)
     prob.param_dict['f_x'].value = np.asarray(affine_dynamics.f_x).reshape((N,-1))
     prob.param_dict['f_u'].value = np.asarray(affine_dynamics.f_u).reshape((N,-1))
 
-    if len(affine_ineq) > 0:
+    if n_ineq > 0:
         prob.param_dict['f0_ineq'].value = np.asarray(affine_ineq.f0)
         prob.param_dict['f_x_ineq'].value = np.asarray(affine_ineq.f_x).reshape((N, -1))
         prob.param_dict['f_u_ineq'].value = np.asarray(affine_ineq.f_u).reshape((N, -1))
 
-    if len(affine_eq) > 0:
+    if n_eq > 0:
         prob.param_dict['f0_eq'].value = np.asarray(affine_eq.f0)
         prob.param_dict['f_x_eq'].value = np.asarray(affine_eq.f_x).reshape((N, -1))
         prob.param_dict['f_u_eq'].value = np.asarray(affine_eq.f_u).reshape((N, -1))
@@ -90,8 +91,8 @@ def sequentialConvexProgramming(
     runningCost: Callable[[np.ndarray, np.ndarray], float],
     terminalCost: Callable[[np.ndarray], float],
     dt: float,
-    ineqConstraints: list[Callable[[np.ndarray, np.ndarray], float]] = [],
-    eqConstraints: list[Callable[[np.ndarray, np.ndarray], float]] = [],
+    ineqConstraints: Callable[[np.ndarray, np.ndarray], jnp.ndarray] = lambda x,u: jnp.array([]),
+    eqConstraints: Callable[[np.ndarray, np.ndarray], jnp.ndarray] = lambda x,u: jnp.array([]),
     tol: float = 1e-3,
     maxIter=100
 ) -> tuple[Trajectory, bool]:
@@ -108,8 +109,8 @@ def sequentialConvexProgramming(
     runningCost : Running cost function of the form `j = runningCost(x,u)`
     terminalCost : Terminal cost function of the form `jf = terminalCost(xf)`
     dt : Discretization time step
-    ineqConstraints : List of inequality constraints of the form: `f_i(x,u) <= 0`
-    eqConstraints : List of equality constraints of the form: `h_i(x,u) = 0`
+    ineqConstraints : Inequality constraint function of the form: `f(x,u) <= 0`
+    eqConstraints : Equality constraints of the form: `h(x,u) = 0`
     tol : Convergence tolerance
     maxIter : maximum number of SCP iterations to run
 
@@ -122,32 +123,19 @@ def sequentialConvexProgramming(
 
     n = traj.xTraj.shape[1]
     N, m = traj.uTraj.shape
-    n_ineq = len(ineqConstraints)
-    n_eq = len(eqConstraints)
+
+    n_ineq = ineqConstraints(np.zeros(n), np.zeros(m)).shape[0]
+    n_eq = eqConstraints(np.zeros(n), np.zeros(m)).shape[0]
 
     converged = False
     cvxProb = _setupProblem(N, n, m, dt, runningCost, terminalCost, x0, n_ineq, n_eq)
     J_prev = np.inf
     for i in range(maxIter):
         affine_dynamics = AffineDynamics.from_trajectory(dynamics, traj)
+        affine_ineq = AffineDynamics.from_trajectory(ineqConstraints, traj)
+        affine_eq = AffineDynamics.from_trajectory(eqConstraints, traj)
 
-        affine_ineq = jax.tree.map(lambda f_i: AffineDynamics.from_trajectory(f_i, traj), ineqConstraints)
-        if n_ineq > 0:
-            affine_ineq = AffineDynamics(
-                np.stack([x.f0 for x in affine_ineq], axis=1),
-                np.stack([x.f_x for x in affine_ineq], axis=1),
-                np.stack([x.f_u for x in affine_ineq], axis=1)
-            )
-
-        affine_eq = jax.tree.map(lambda f_i: AffineDynamics.from_trajectory(f_i, traj), eqConstraints)
-        if n_eq > 0:
-            affine_eq = AffineDynamics(
-                np.stack([x.f0 for x in affine_eq], axis=1),
-                np.stack([x.f_x for x in affine_eq], axis=1),
-                np.stack([x.f_u for x in affine_eq], axis=1)
-            )
-
-        traj, J = _solveProblem(cvxProb, affine_dynamics, affine_ineq, affine_eq)
+        traj, J = _solveProblem(cvxProb, affine_dynamics, affine_ineq, affine_eq, n_ineq, n_eq)
 
         if abs(J - J_prev) < tol:
             converged = True
