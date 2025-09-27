@@ -33,27 +33,33 @@ def _setupProblem(N, n, m, dt, runningCost, terminalCost, x0, n_ineq, n_eq):
     gf = terminalCost
 
     f0 = cvx.Parameter((N, n), name="f0")
-    f_x = cvx.Parameter((N, n*n), name="f_x")
-    f_u = cvx.Parameter((N, n*m), name="f_u")
+    f_x = cvx.Parameter((N, n * n), name="f_x")
+    f_u = cvx.Parameter((N, n * m), name="f_u")
 
     cost = gf(x[-1]) + cvx.sum([g(x[k], u[k]) for k in range(N)])
     objective = cvx.Minimize(cost)
-    dyn = lambda x, u, k: x[k] + dt * (f0[k] + f_x[k].reshape((n,n), 'C') @ x[k] + f_u[k].reshape((n,m), 'C') @ u[k])
+    dyn = lambda x, u, k: x[k] + dt * (f0[k] + f_x[k].reshape((n, n), 'C') @ x[k] + f_u[k].reshape((n, m), 'C') @ u[k])
     constraints = [x[0] == x0]
     constraints += [x[k + 1] == dyn(x, u, k) for k in range(N)]
 
     # Add additional constraints
     if n_ineq > 0:
         f0_ineq = cvx.Parameter((N, n_ineq), name="f0_ineq")
-        f_x_ineq = cvx.Parameter((N, n_ineq*n), name="f_x_ineq")
-        f_u_ineq = cvx.Parameter((N, n_ineq*m), name="f_u_ineq")
-        constraints += [f0_ineq[k] + f_x_ineq[k].reshape((n_ineq,n), 'C') @ x[k] + f_u_ineq[k].reshape((n_ineq,m), 'C') @ u[k] <= 0 for k in range(N)]
+        f_x_ineq = cvx.Parameter((N, n_ineq * n), name="f_x_ineq")
+        f_u_ineq = cvx.Parameter((N, n_ineq * m), name="f_u_ineq")
+        constraints += [
+            f0_ineq[k] + f_x_ineq[k].reshape((n_ineq, n), 'C') @ x[k] + f_u_ineq[k].reshape((n_ineq, m), 'C') @ u[k]
+            <= 0 for k in range(N)
+        ]
 
     if n_eq > 0:
         f0_eq = cvx.Parameter((N, n_eq), name="f0_eq")
-        f_x_eq = cvx.Parameter((N, n_eq*n), name="f_x_eq")
-        f_u_eq = cvx.Parameter((N, n_eq*m), name="f_u_eq")
-        constraints += [f0_eq[k] + f_x_eq[k].reshape((n_eq,n), 'C') @ x[k] + f_u_eq[k].reshape((n_eq,m), 'C') @ u[k] == 0 for k in range(N)]
+        f_x_eq = cvx.Parameter((N, n_eq * n), name="f_x_eq")
+        f_u_eq = cvx.Parameter((N, n_eq * m), name="f_u_eq")
+        constraints += [
+            f0_eq[k] + f_x_eq[k].reshape((n_eq, n), 'C') @ x[k] + f_u_eq[k].reshape((n_eq, m), 'C') @ u[k] == 0
+            for k in range(N)
+        ]
 
     prob = cvx.Problem(objective, constraints)
     return prob
@@ -61,10 +67,10 @@ def _setupProblem(N, n, m, dt, runningCost, terminalCost, x0, n_ineq, n_eq):
 
 def _solveProblem(prob, affine_dynamics, affine_ineq, affine_eq, n_ineq, n_eq):
     # Updates prob parameters and solves
-    N,n,m = affine_dynamics.f_u.shape
+    N, n, m = affine_dynamics.f_u.shape
     prob.param_dict['f0'].value = np.asarray(affine_dynamics.f0)
-    prob.param_dict['f_x'].value = np.asarray(affine_dynamics.f_x).reshape((N,-1))
-    prob.param_dict['f_u'].value = np.asarray(affine_dynamics.f_u).reshape((N,-1))
+    prob.param_dict['f_x'].value = np.asarray(affine_dynamics.f_x).reshape((N, -1))
+    prob.param_dict['f_u'].value = np.asarray(affine_dynamics.f_u).reshape((N, -1))
 
     if n_ineq > 0:
         prob.param_dict['f0_ineq'].value = np.asarray(affine_ineq.f0)
@@ -91,8 +97,8 @@ def sequentialConvexProgramming(
     runningCost: Callable[[np.ndarray, np.ndarray], float],
     terminalCost: Callable[[np.ndarray], float],
     dt: float,
-    ineqConstraints: Callable[[np.ndarray, np.ndarray], jnp.ndarray] = lambda x,u: jnp.array([]),
-    eqConstraints: Callable[[np.ndarray, np.ndarray], jnp.ndarray] = lambda x,u: jnp.array([]),
+    ineqConstraints: Callable[[np.ndarray, np.ndarray], jnp.ndarray] = lambda x, u: jnp.array([]),
+    eqConstraints: Callable[[np.ndarray, np.ndarray], jnp.ndarray] = lambda x, u: jnp.array([]),
     tol: float = 1e-3,
     maxIter=100
 ) -> tuple[Trajectory, bool]:
